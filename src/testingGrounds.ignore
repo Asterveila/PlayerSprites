@@ -1,0 +1,63 @@
+#include "Geode/cocos/layers_scenes_transitions_nodes/CCLayer.h"
+#include "Geode/cocos/sprite_nodes/CCSprite.h"
+#include <Geode/binding/GJBaseGameLayer.hpp>
+#include <Geode/binding/PlayerObject.hpp>
+#include <Geode/modify/PlayerObject.hpp>
+
+using namespace geode::prelude;
+
+class $modify(sexPlayerObject, PlayerObject) {
+	struct Fields {
+		CCSprite* fuck = nullptr;
+	};
+
+	void hideEverything(bool ship, bool ufo, bool complexIcon) {
+
+		if (complexIcon) {
+			m_robotBatchNode->setVisible(false);
+			m_spiderBatchNode->setVisible(false);
+			return;
+		}
+
+		m_iconSprite->setVisible(false);
+		m_iconSpriteSecondary->setVisible(false);
+		m_iconSpriteWhitener->setVisible(false);
+
+		if (ship || ufo) {
+			m_vehicleSprite->setVisible(false);
+			m_vehicleSpriteSecondary->setVisible(false);
+			m_vehicleSpriteWhitener->setVisible(false);
+			m_vehicleGlow->setVisible(false);
+
+			m_birdVehicle->setVisible(false);
+		}
+
+		m_swingFireTop->setVisible(false);
+		m_swingFireMiddle->setVisible(false);
+		m_swingFireBottom->setVisible(false);
+
+		m_dashSpritesContainer->setVisible(false);
+	}
+
+	bool init(int player, int ship, GJBaseGameLayer* gameLayer, cocos2d::CCLayer* layer, bool playLayer) {
+		if (!PlayerObject::init(player, ship, gameLayer, layer, playLayer)) return false;
+
+		m_fields->fuck = CCSprite::create("sonci.png"_spr);
+		m_mainLayer->addChild(m_fields->fuck, 100);
+
+		return true;
+	}
+
+	void update(float dt) {
+		PlayerObject::update(dt);
+
+		hideEverything(m_isShip, m_isBird, m_isRobot || m_isSpider);
+
+		auto haha = this->getRotation();
+		if (m_fields->fuck) {
+			m_fields->fuck->setRotation(haha);
+		} else {
+			log::info("NOOOOO FUUUUUUUUUUUUUUUUUUUUUUUUCKKKKKKKKKKKKKKKK");
+		}
+	}
+};
