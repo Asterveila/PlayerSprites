@@ -2,6 +2,7 @@
 #include "SpritePackCell.hpp"
 #include "SpritePackSettingsPopup.hpp"
 #include "../data/PackManager.hpp"
+#include "../data/PackSettings.hpp"
 
 namespace playersprites {
 
@@ -16,7 +17,7 @@ namespace playersprites {
 	}
 
 	bool SpritePackListPopup::init() {
-		if (!Popup::init(400.f, 280.f, "GJ_square01.png")) return false;
+		if (!Popup::init(460.f, 280.f, "hueShiftedSquare.png"_spr)) return false;
 
 		this->setTitle("Sprite Packs");
 
@@ -69,7 +70,9 @@ namespace playersprites {
 
 		for (auto const& pack : loaded) {
 			cells.push_back(SpritePackCell::createForPack(
-				pack, cells.size() % 2 == 0, this, menu_selector(SpritePackListPopup::onPackSettings)
+				pack, cells.size() % 2 == 0, this,
+				menu_selector(SpritePackListPopup::onTogglePack),
+				menu_selector(SpritePackListPopup::onPackSettings)
 			));
 		}
 		for (auto const& [id, error] : errors) {
@@ -91,6 +94,17 @@ namespace playersprites {
 	void SpritePackListPopup::onReload(CCObject*) {
 		PackManager::get().reload();
 		this->buildList();
+		Notification::create(fmt::format("Reloaded {} packs!", PackManager::get().getLoadedPacks().size()), NotificationIcon::Success, 0.5f)->show();
+	}
+
+	void SpritePackListPopup::onTogglePack(CCObject* sender) {
+		auto* btn = static_cast<CCMenuItemToggler*>(sender);
+		auto* idObj = static_cast<CCString*>(btn->getUserObject("pack-id"_spr));
+		if (!idObj) return;
+		std::string id = idObj->getCString();
+
+		bool newState = !settings::isPackEnabled(id);
+		settings::setPackEnabled(id, newState);
 	}
 
 	void SpritePackListPopup::onPackSettings(CCObject* sender) {

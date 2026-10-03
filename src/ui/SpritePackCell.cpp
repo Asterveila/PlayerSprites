@@ -1,8 +1,11 @@
 #include "SpritePackCell.hpp"
+#include "../data/PackSettings.hpp"
 
 namespace playersprites {
 
 	namespace {
+
+		constexpr float CONTROLS_AREA = 90.f;
 
 		std::string buildCreditsLine(SpritePackMeta const& meta) {
 			if (meta.credits.empty()) {
@@ -29,9 +32,9 @@ namespace playersprites {
 
 	}
 
-	SpritePackCell* SpritePackCell::createForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler settingsSelector) {
+	SpritePackCell* SpritePackCell::createForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler settingsSelector) {
 		auto ret = new SpritePackCell();
-		if (ret->initForPack(pack, even, target, settingsSelector)) {
+		if (ret->initForPack(pack, even, target, toggleSelector, settingsSelector)) {
 			ret->autorelease();
 			return ret;
 		}
@@ -49,7 +52,7 @@ namespace playersprites {
 		return nullptr;
 	}
 
-	bool SpritePackCell::initForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler settingsSelector) {
+	bool SpritePackCell::initForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler settingsSelector) {
 		if (!CCLayer::init()) return false;
 
 		CCSize size = { WIDTH, HEIGHT };
@@ -64,7 +67,7 @@ namespace playersprites {
 
 		auto* icon = loadPackIcon(pack.rootPath);
 		icon->setAnchorPoint({ 0.5f, 0.5f });
-		
+
 		auto iconSize = icon->getContentSize();
 		float maxDim = std::max(iconSize.width, iconSize.height);
 		if (maxDim > 0.f) icon->setScale((HEIGHT - 10.f) / maxDim);
@@ -75,16 +78,15 @@ namespace playersprites {
 		nameLabel->setAnchorPoint({ 0.f, 0.5f });
 		nameLabel->setPosition({ HEIGHT + 8.f, size.height * 0.62f });
 		nameLabel->setScale(0.5f);
-		nameLabel->limitLabelWidth(WIDTH - HEIGHT - 60.f, 0.5f, 0.1f);
+		nameLabel->limitLabelWidth(WIDTH - HEIGHT - CONTROLS_AREA, 0.5f, 0.1f);
 		this->addChild(nameLabel);
 
 		auto creditsLine = buildCreditsLine(pack.meta);
-		auto creditsLabel = CCLabelBMFont::create(creditsLine.c_str(), "chatFont.fnt");
+		auto creditsLabel = CCLabelBMFont::create(creditsLine.c_str(), "goldFont.fnt");
 		creditsLabel->setAnchorPoint({ 0.f, 0.5f });
 		creditsLabel->setPosition({ HEIGHT + 8.f, size.height * 0.3f });
 		creditsLabel->setScale(0.4f);
-		creditsLabel->setOpacity(180);
-		creditsLabel->limitLabelWidth(WIDTH - HEIGHT - 60.f, 0.4f, 0.1f);
+		creditsLabel->limitLabelWidth(WIDTH - HEIGHT - CONTROLS_AREA, 0.4f, 0.1f);
 		this->addChild(creditsLabel);
 
 		auto menu = CCMenu::create();
@@ -92,6 +94,16 @@ namespace playersprites {
 		menu->setPosition({ 0.f, 0.f });
 		menu->setAnchorPoint({ 0.f, 0.f });
 		this->addChild(menu);
+
+		auto offSpr = CCSprite::createWithSpriteFrameName("GJ_checkOff_001.png");
+		auto onSpr = CCSprite::createWithSpriteFrameName("GJ_checkOn_001.png");
+		m_packToggle = CCMenuItemToggler::create(offSpr, onSpr, target, toggleSelector);
+		m_packToggle->setScale(0.7f);
+		m_packToggle->toggle(settings::isPackEnabled(pack.id));
+		m_packToggle->setUserObject("pack-id"_spr, CCString::create(pack.id));
+		m_packToggle->setPosition({ size.width - 24.f - 38.f, size.height / 2.f });
+		m_packToggle->setID(fmt::format("{}-toggle", pack.id));
+		menu->addChild(m_packToggle);
 
 		auto gearSprite = CCSprite::createWithSpriteFrameName("GJ_optionsBtn_001.png");
 		gearSprite->setScale(0.7f);

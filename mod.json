@@ -11,6 +11,20 @@
 	"version": "v1.0.0",
 	"developer": "Saritahhh",
 	"description": "Replace your gamemodes with animated sprites!",
+	"settings": {
+		"ghost-trail-behavior": {
+			"type": "string",
+			"name": "Ghost Trail Behavior",
+			"description": "Defines how to handle GD's Ghost Trail when enabled, names are pretty self explanatory. \n\n- Untouched: Ghost Trail remains the same, will show the Vanilla GD icon sprites. \n\n-Replace: Will make the Ghost Trail show your currently active Sprite pack's sprite. \n\n- Disable: Disables Ghost Trail altogether.",
+			"default": "replace",
+			"one-of": ["untouched", "replace", "disable"]
+		}
+	},
+	"resources": {
+		"sprites": [
+			"resources/*.png"
+		]
+	},
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3"
 	}

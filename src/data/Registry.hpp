@@ -20,7 +20,6 @@ namespace playersprites {
 		std::vector<std::string> const& packIds() const { return m_packIds; }
 		bool contains(std::string const& id) const;
 
-		// Both are in-memory only until save() is called.
 		bool addPack(std::string const& id);
 		bool removePack(std::string const& id);
 	};

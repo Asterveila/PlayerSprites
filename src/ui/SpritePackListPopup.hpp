@@ -15,6 +15,7 @@ namespace playersprites {
 		void buildList();
 
 		void onReload(CCObject* sender);
+		void onTogglePack(CCObject* sender);
 		void onPackSettings(CCObject* sender);
 
 	public:

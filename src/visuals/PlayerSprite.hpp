@@ -36,8 +36,6 @@ namespace playersprites {
 
 		bool init();
 
-		std::vector<cocos2d::CCSpriteFrame*> buildFrames(SpritePack const& pack, AnimEvent const& anim);
-
 		void onNonLoopFinished();
 		void onHoldFinished(float dt);
 
@@ -45,6 +43,8 @@ namespace playersprites {
 
 	public:
 		static PlayerSprite* create();
+
+		static std::vector<cocos2d::CCSpriteFrame*> buildFrames(SpritePack const& pack, AnimEvent const& anim);
 
 		bool triggerAnim(SpritePack const& pack, AnimEvent const& anim, std::string const& gamemode, std::string const& eventName, bool force = false, bool isStateDriven = false);
 
