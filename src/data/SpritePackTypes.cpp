@@ -132,6 +132,7 @@ namespace playersprites {
 		ev.loopAnim = optionalBool(json, "loopAnim", true);
 		ev.lockRotation = optionalBool(json, "lockRotation", false);
 		ev.canBeInterrupted = optionalBool(json, "canBeInterrupted", true);
+		ev.interruptBySelf = optionalBool(json, "interruptBySelf", false);
 		ev.keepPlayer = optionalBool(json, "keepPlayer", false);
 
 		auto holdForRes = optionalFloat(json, "holdFor", eventName);

@@ -1,5 +1,6 @@
 #include "SpritePackListPopup.hpp"
 #include "SpritePackCell.hpp"
+#include "SpritePackSettingsPopup.hpp"
 #include "../data/PackManager.hpp"
 
 namespace playersprites {
@@ -95,9 +96,10 @@ namespace playersprites {
 	void SpritePackListPopup::onPackSettings(CCObject* sender) {
 		auto* btn = static_cast<CCMenuItemSpriteExtra*>(sender);
 		auto* idObj = static_cast<CCString*>(btn->getUserObject("pack-id"_spr));
-		std::string id = idObj ? idObj->getCString() : "?";
+		if (!idObj) return;
+		std::string id = idObj->getCString();
 
-		Notification::create(fmt::format("Settings for {} coming soon", id), NotificationIcon::Info)->show();
+		SpritePackSettingsPopup::create(id)->show();
 	}
 
 }

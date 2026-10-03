@@ -16,12 +16,14 @@ namespace playersprites {
 
 		State m_state = State::Idle;
 		bool m_currentCanBeInterrupted = true;
+		bool m_currentInterruptBySelf = false;
 		bool m_currentLockRotation = false;
 		bool m_currentKeepPlayer = false;
 		std::optional<float> m_currentHoldFor;
 		std::vector<std::string> m_currentCancelOn;
 		std::optional<float> m_currentFadeOutTime;
 		float m_currentOffsetY = 0.f;
+		cocos2d::CCPoint m_basePosition = { 0.f, 0.f }; // the position of the PlayerSprite, NOT m_sprite, dumbass
 
 		bool m_currentIsStateDriven = false;
 
@@ -47,6 +49,7 @@ namespace playersprites {
 		bool triggerAnim(SpritePack const& pack, AnimEvent const& anim, std::string const& gamemode, std::string const& eventName, bool force = false, bool isStateDriven = false);
 
 		void stopAnim();
+		void resetState();
 
 		bool isPlaying() const { return m_state != State::Idle; }
 		bool isBlocking() const { return m_state != State::Idle && !m_currentCanBeInterrupted; }
@@ -59,6 +62,7 @@ namespace playersprites {
 		bool currentKeepPlayer() const { return m_currentKeepPlayer; }
 		bool currentLockRotation() const { return m_currentLockRotation; }
 		bool currentIsStateDriven() const { return m_currentIsStateDriven; }
+		bool currentInterruptBySelf() const { return m_currentInterruptBySelf; }
 
 		void setFlipped(bool flipped);
 

@@ -1,6 +1,7 @@
 #include "visuals/PlayerSprite.hpp"
 #include "GamemodeUtils.hpp"
 #include "data/PackManager.hpp"
+#include "data/PackSettings.hpp"
 
 #include <Geode/modify/PlayerObject.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
@@ -10,9 +11,18 @@ using namespace playersprites;
 
 namespace {
 	SpritePack const* activePack() {
-		auto& loaded = PackManager::get().getLoadedPacks();
-		if (loaded.empty()) return nullptr;
-		return &loaded[0];
+		for (auto const& pack : PackManager::get().getLoadedPacks()) {
+			if (settings::isPackEnabled(pack.id)) return &pack;
+		}
+		return nullptr;
+	}
+
+	AnimEvent const* findEnabledEvent(SpritePack const& pack, std::string const& gamemode, std::string const& triggerName) {
+		if (!settings::isGamemodeEnabled(pack.id, gamemode)) return nullptr;
+		auto* anim = pack.findEvent(gamemode, triggerName);
+		if (!anim) return nullptr;
+		if (!settings::isEventEnabled(pack.id, gamemode, anim->id)) return nullptr;
+		return anim;
 	}
 }
 
@@ -46,7 +56,9 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		auto gamemode = currentGamemodeName(this);
 
-		bool gamemodeDeclared = pack->gamemodes.find(gamemode) != pack->gamemodes.end();
+		bool gamemodeDeclared =
+			pack->gamemodes.find(gamemode) != pack->gamemodes.end() &&
+			settings::isGamemodeEnabled(pack->id, gamemode);
 		if (!gamemodeDeclared) {
 			if (sprite->isPlaying()) sprite->stopAnim();
 			sprite->setVisible(false);
@@ -55,10 +67,11 @@ class $modify(PSPlayerObject, PlayerObject) {
 		}
 		sprite->setVisible(true);
 
-		std::string stateEventName = (m_isPlatformer && !m_isMoving) ? "Mod:Idle" : "Mod:Update";
+		bool moving = m_holdingLeft != m_holdingRight;
+		std::string stateEventName = (m_isPlatformer && !moving) ? "Mod:Idle" : "Mod:Update";
 
 		if (!sprite->isPlaying() || sprite->currentIsStateDriven()) {
-			auto* anim = pack->findEvent(gamemode, stateEventName);
+			auto* anim = findEnabledEvent(*pack, gamemode, stateEventName);
 			if (anim) {
 				bool alreadyPlayingThis =
 					sprite->isPlaying() &&
@@ -73,7 +86,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		if (sprite->currentLockRotation()) {
 			this->setRotation(0.f);
-			sprite->setFlipped(m_isUpsideDown);
+			sprite->setFlipped(m_isUpsideDown && !m_isRobot);
 		} else {
 			sprite->setFlipped(false);
 		}
@@ -128,14 +141,19 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		auto gamemode = currentGamemodeName(this);
 
-		if (auto* anim = pack->findEvent(gamemode, "Mod:RetroDeath")) {
+		if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:RetroDeath")) {
 			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
 			sprite->playRetroDeathAction();
-		} else if (auto* anim = pack->findEvent(gamemode, "Mod:StaticDeath")) {
+		} else if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:StaticDeath")) {
 			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
-		} else if (auto* anim = pack->findEvent(gamemode, "Mod:StaticDeathDisappear")) {
+		} else if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:StaticDeathDisappear")) {
 			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
 		}
+	}
+
+	void resetObject() {
+		PlayerObject::resetObject();
+		if (auto* sprite = m_fields->modSprite) sprite->resetState();
 	}
 };
 
@@ -178,17 +196,16 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 
 			bool forceOverride = sprite->currentCancelsOn(rawName);
 
-			auto* anim = pack->findEvent(gamemode, rawName);
+			auto* anim = findEnabledEvent(*pack, gamemode, rawName);
 			// geode::log::debug("!!!!-- EVENT PASSED HERE: gamemode={}, anim found={}, forceOverride={}", rawName, gamemode, anim != nullptr, forceOverride);
 
 			if (anim) {
-				bool alreadyPlayingThis =
-					sprite->isPlaying() &&
-					sprite->currentGamemode() == gamemode &&
-					sprite->currentEventName() == anim->id;
+				bool alreadyPlayingThis = sprite->isPlaying() && sprite->currentGamemode() == gamemode && sprite->currentEventName() == anim->id;
 
 				if (!alreadyPlayingThis) {
 					sprite->triggerAnim(*pack, *anim, gamemode, anim->id, forceOverride);
+				} else if (sprite->currentInterruptBySelf()) {
+					sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
 				}
 			} else if (forceOverride) {
 				sprite->stopAnim();

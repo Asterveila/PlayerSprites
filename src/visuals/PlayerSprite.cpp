@@ -38,6 +38,8 @@ namespace playersprites {
 		m_sprite->setAnchorPoint({ 0.5f, 0.5f });
 		this->addChild(m_sprite);
 
+		m_basePosition = this->getPosition(); // just in case bruh u never fucking know
+
 		this->setContentSize(m_sprite->getContentSize());
 		this->setAnchorPoint({ 0.5f, 0.5f });
 
@@ -89,11 +91,7 @@ namespace playersprites {
 		return frames;
 	}
 
-	bool PlayerSprite::triggerAnim(
-		SpritePack const& pack, AnimEvent const& anim,
-		std::string const& gamemode, std::string const& eventName,
-		bool force, bool isStateDriven
-	) {
+	bool PlayerSprite::triggerAnim(SpritePack const& pack, AnimEvent const& anim, std::string const& gamemode, std::string const& eventName, bool force, bool isStateDriven) {
 		if (isBlocking() && !force) {
 			m_pendingPack = &pack;
 			m_pendingGamemode = gamemode;
@@ -114,6 +112,9 @@ namespace playersprites {
 		m_sprite->setOpacity(255);
 		this->unschedule(schedule_selector(PlayerSprite::onHoldFinished));
 
+		this->setPosition(m_basePosition);
+		m_sprite->setVisible(true);
+
 		m_sprite->setDisplayFrame(frames[0]);
 		this->setContentSize(m_sprite->getContentSize());
 
@@ -122,6 +123,7 @@ namespace playersprites {
 		m_sprite->setPosition({ size.width / 2.f + anim.offsetX, size.height / 2.f + anim.offsetY });
 
 		m_currentCanBeInterrupted = anim.canBeInterrupted;
+		m_currentInterruptBySelf = anim.interruptBySelf;
 		m_currentLockRotation = anim.lockRotation;
 		m_currentKeepPlayer = anim.keepPlayer;
 		m_currentHoldFor = anim.holdFor;
@@ -232,6 +234,14 @@ namespace playersprites {
 		m_currentOffsetY = 0.f;
 		m_currentIsStateDriven = false;
 		m_pendingPack = nullptr;
+	}
+
+	void PlayerSprite::resetState() {
+		this->stopAnim();
+		this->setPosition(m_basePosition);
+		this->setRotation(0.f);
+		m_sprite->setFlipY(false);
+		m_sprite->setVisible(false);
 	}
 
 	void PlayerSprite::setFlipped(bool flipped) {

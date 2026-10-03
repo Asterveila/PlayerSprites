@@ -65,6 +65,10 @@ namespace playersprites {
 		// if true, i sure fucking wonder.
 		bool canBeInterrupted = true;
 
+		// if true, this animation gets restarted from frame 0 when one of its own triggerOn events fires again while it's playing.
+		// does NOT affect what OTHER events can do to it, that's still up to canBeInterrupted.
+		bool interruptBySelf = false;
+
 		float rollFrameTime() const;
 
 		static geode::Result<AnimEvent, std::string> parse(std::string const& eventName, matjson::Value const& json);
