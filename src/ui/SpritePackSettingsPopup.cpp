@@ -20,6 +20,7 @@ namespace playersprites {
 	bool SpritePackSettingsPopup::init() {
 		auto* pack = PackManager::get().findPack(m_packId);
 
+		// @geode-ignore(unknown-resource)
 		if (!Popup::init(440.f, 280.f, "geode.loader/GE_square03.png")) return false;
 
 		this->setTitle(pack ? pack->meta.setName : "Pack Not Found");
