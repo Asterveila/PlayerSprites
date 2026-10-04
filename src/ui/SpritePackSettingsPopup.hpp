@@ -15,6 +15,8 @@ namespace playersprites {
 		bool init() override;
 		void buildRows();
 
+		void onToggleClassic(CCObject* sender);
+		void onTogglePlatformer(CCObject* sender);
 		void onToggleGamemode(CCObject* sender);
 		void onToggleEvent(CCObject* sender);
 		void onOpenFolder(CCObject* sender);

@@ -10,9 +10,9 @@ using namespace geode::prelude;
 using namespace playersprites;
 
 namespace {
-	SpritePack const* activePack() {
+	SpritePack const* activePack(bool platformer) {
 		for (auto const& pack : PackManager::get().getLoadedPacks()) {
-			if (settings::isPackEnabled(pack.id)) return &pack;
+			if (settings::isPackActive(pack.id, platformer)) return &pack;
 		}
 		return nullptr;
 	}
@@ -51,7 +51,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 		auto* sprite = m_fields->modSprite;
 		if (!sprite) return;
 
-		auto* pack = activePack();
+		auto* pack = activePack(m_isPlatformer);
 		if (!pack) return;
 
 		auto gamemode = currentGamemodeName(this);
@@ -62,7 +62,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 		if (!gamemodeDeclared) {
 			if (sprite->isPlaying()) sprite->stopAnim();
 			sprite->setVisible(false);
-			this->setVanillaVisible(true);
+			this->setVanillaVisible(true, pack->globalAttributes);
 			return;
 		}
 		sprite->setVisible(true);
@@ -93,38 +93,40 @@ class $modify(PSPlayerObject, PlayerObject) {
 		}
 
 		bool showVanilla = !sprite->isPlaying() || sprite->currentKeepPlayer();
-		this->setVanillaVisible(showVanilla);
+		this->setVanillaVisible(showVanilla, pack->globalAttributes);
 	}
 
 	// TODO: this needs a LOOOOOOOOT of tweaking
 	// ts still hiding and showing left and right when it shouldn't .
-	void setVanillaVisible(bool visible) {
+	void setVanillaVisible(bool visible, GlobalAttributes const& attrs) {
 		bool complexIcon = m_isRobot || m_isSpider;
 
 		if (complexIcon) {
 			m_robotBatchNode->setVisible(visible);
 			m_spiderBatchNode->setVisible(visible);
-			return;
+
+			if (m_isRobot && m_robotFire && !visible && !attrs.keepRobotFire) m_robotFire->setVisible(false);
+		} else {
+			m_iconSprite->setVisible(visible);
+			m_iconSpriteSecondary->setVisible(visible);
+			// m_iconSpriteWhitener->setVisible(visible);
+
+			if (m_isShip || m_isBird) {
+				m_vehicleSprite->setVisible(visible);
+				m_vehicleSpriteSecondary->setVisible(visible);
+				// m_vehicleSpriteWhitener->setVisible(visible);
+				// m_vehicleGlow->setVisible(visible);
+				if (m_isBird) m_birdVehicle->setVisible(visible);
+			}
+
+			if (m_isSwing && !attrs.keepSwingFires) {
+				m_swingFireTop->setVisible(visible);
+				m_swingFireMiddle->setVisible(visible);
+				m_swingFireBottom->setVisible(visible);
+			}
 		}
 
-		m_iconSprite->setVisible(visible);
-		m_iconSpriteSecondary->setVisible(visible);
-		// m_iconSpriteWhitener->setVisible(visible);
-
-		if (m_isShip || m_isBird) {
-			m_vehicleSprite->setVisible(visible);
-			m_vehicleSpriteSecondary->setVisible(visible);
-			// m_vehicleSpriteWhitener->setVisible(visible);
-			// m_vehicleGlow->setVisible(visible);
-			m_birdVehicle->setVisible(visible);
-		}
-
-		if (m_isSwing) {
-			m_swingFireTop->setVisible(visible);
-			m_swingFireMiddle->setVisible(visible);
-			m_swingFireBottom->setVisible(visible);
-		}
-		m_dashSpritesContainer->setVisible(visible);
+		if (!attrs.keepDashFire) m_dashSpritesContainer->setVisible(visible);
 	}
 
 	PlayerSprite* getModSprite() {
@@ -137,7 +139,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 		auto* sprite = m_fields->modSprite;
 		if (!sprite) return;
 
-		auto* pack = activePack();
+		auto* pack = activePack(m_isPlatformer);
 		if (!pack) return;
 
 		auto gamemode = currentGamemodeName(this);
@@ -185,7 +187,7 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 		}
 		if (targets.empty()) return;
 
-		auto* pack = activePack();
+		auto* pack = activePack(m_isPlatformer);
 		if (!pack) return;
 
 		for (auto* target : targets) {

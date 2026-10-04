@@ -142,6 +142,7 @@ namespace playersprites {
 		auto sprite = CCSprite::createWithSpriteFrame(frames[0]);
 		auto contentSize = sprite->getContentSize();
 		float maxDim = PREVIEW_BOX - PREVIEW_PADDING * 2.f;
+		
 		if (contentSize.width > 0.f && contentSize.height > 0.f) {
 			sprite->setScale(std::min(maxDim / contentSize.width, maxDim / contentSize.height));
 		}
@@ -150,9 +151,8 @@ namespace playersprites {
 
 		if (!anim.singleFrame && frames.size() > 1) {
 			auto frameArray = CCArray::createWithCapacity(frames.size());
-			for (auto* frame : frames) {
-				frameArray->addObject(frame);
-			}
+
+			for (auto* frame : frames) frameArray->addObject(frame);
 
 			float frameTime = std::max(anim.frameTime.value_or(anim.maxFrameTime.value_or(0.08f)), 0.03f);
 

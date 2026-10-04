@@ -18,6 +18,14 @@ namespace playersprites {
 			return num;
 		}
 
+		void applyTextureMode(CCTexture2D* texture, bool pixelMode) {
+			if (pixelMode) {
+				texture->setAliasTexParameters();
+			} else {
+				texture->setAntiAliasTexParameters();
+			}
+		}
+
 	}
 
 	PlayerSprite* PlayerSprite::create() {
@@ -61,6 +69,7 @@ namespace playersprites {
 				geode::log::warn("pack '{}' failed to load texture {}", pack.id, path.string());
 				return frames;
 			}
+			applyTextureMode(texture, pack.globalAttributes.pixelMode);
 			auto rect = CCRect(0, 0, texture->getContentSize().width, texture->getContentSize().height);
 			if (auto* frame = CCSpriteFrame::createWithTexture(texture, rect)) frames.push_back(frame);
 			return frames;
@@ -82,6 +91,7 @@ namespace playersprites {
 				geode::log::warn("pack '{}' failed to load texture {}", pack.id, path.string());
 				continue;
 			}
+			applyTextureMode(texture, pack.globalAttributes.pixelMode);
 
 			auto rect = CCRect(0, 0, texture->getContentSize().width, texture->getContentSize().height);
 			auto* frame = CCSpriteFrame::createWithTexture(texture, rect);
@@ -114,9 +124,10 @@ namespace playersprites {
 
 		this->setPosition(m_basePosition);
 		m_sprite->setVisible(true);
-
 		m_sprite->setDisplayFrame(frames[0]);
 		this->setContentSize(m_sprite->getContentSize());
+
+		m_sprite->setScale(pack.globalAttributes.scale);
 
 		auto size = this->getContentSize();
 		m_currentOffsetY = anim.offsetY;

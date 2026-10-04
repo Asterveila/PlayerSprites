@@ -72,6 +72,7 @@ namespace playersprites {
 			cells.push_back(SpritePackCell::createForPack(
 				pack, cells.size() % 2 == 0, this,
 				menu_selector(SpritePackListPopup::onTogglePack),
+				menu_selector(SpritePackListPopup::onPackInfo),
 				menu_selector(SpritePackListPopup::onPackSettings)
 			));
 		}
@@ -105,6 +106,18 @@ namespace playersprites {
 
 		bool newState = !settings::isPackEnabled(id);
 		settings::setPackEnabled(id, newState);
+	}
+
+	void SpritePackListPopup::onPackInfo(CCObject* sender) {
+		auto* btn = static_cast<CCMenuItemSpriteExtra*>(sender);
+		auto* idObj = static_cast<CCString*>(btn->getUserObject("pack-id"_spr));
+		if (!idObj) return;
+
+		auto* pack = PackManager::get().findPack(idObj->getCString());
+		if (!pack) return;
+
+		std::string description = pack->meta.description.empty() ? "No Description Provided" : pack->meta.description;
+		MDPopup::create(pack->meta.setName.c_str(), description, "OK")->show();
 	}
 
 	void SpritePackListPopup::onPackSettings(CCObject* sender) {

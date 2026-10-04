@@ -37,7 +37,7 @@ namespace playersprites {
 
 		// self explanatory
 		bool loopAnim = true;
-		bool lockRotation = false;
+		bool lockRotation = false; // okay this might not be AS self explanatory. if true, disables player rotation.
 
 		// how long the animation exists for. 
 		// if -1, stays active until something else interrupts it. (mostly meant for idle platformer sprites)
@@ -78,10 +78,29 @@ namespace playersprites {
 		std::unordered_map<std::string, std::string> triggerIndex;
 	};
 
+	// pack-wide settings for stuff that defines the overall look of ur sprites, all of em.
+	// specially useful if u dont wanna resize pixel art sprites manually, which is a pain in the ass. (<- did it for 2 of the built-in packs. im sorry.)
+	struct GlobalAttributes {
+		// yeag
+		float scale = 1.f;
+
+		// if true, textures get setAliasTexParameters (nearest neighbor scaling, like the pixel art objects in the editor).
+		// if false well nothing changes.
+		bool pixelMode = false;
+
+		// self explanatory. controls for robot/swing fires as well as dash fire anim.
+		bool keepRobotFire = false;
+		bool keepSwingFires = false;
+		bool keepDashFire = false;
+
+		geode::Result<void, std::string> applyFrom(matjson::Value const& json);
+	};
+
 	struct SpritePackMeta {
 		std::string setName;
 		std::string author;
 		std::vector<std::string> credits;
+		std::string description;
 
 		static geode::Result<SpritePackMeta, std::string> parse(matjson::Value const& json);
 	};
@@ -92,6 +111,7 @@ namespace playersprites {
 		fs::path rootPath;
 
 		SpritePackMeta meta;
+		GlobalAttributes globalAttributes;
 
 		std::unordered_map<std::string, GamemodeEvents> gamemodes;
 

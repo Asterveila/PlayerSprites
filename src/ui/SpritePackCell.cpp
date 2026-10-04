@@ -32,9 +32,9 @@ namespace playersprites {
 
 	}
 
-	SpritePackCell* SpritePackCell::createForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler settingsSelector) {
+	SpritePackCell* SpritePackCell::createForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler infoSelector, SEL_MenuHandler settingsSelector) {
 		auto ret = new SpritePackCell();
-		if (ret->initForPack(pack, even, target, toggleSelector, settingsSelector)) {
+		if (ret->initForPack(pack, even, target, toggleSelector, infoSelector, settingsSelector)) {
 			ret->autorelease();
 			return ret;
 		}
@@ -52,7 +52,7 @@ namespace playersprites {
 		return nullptr;
 	}
 
-	bool SpritePackCell::initForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler settingsSelector) {
+	bool SpritePackCell::initForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler infoSelector, SEL_MenuHandler settingsSelector) {
 		if (!CCLayer::init()) return false;
 
 		CCSize size = { WIDTH, HEIGHT };
@@ -78,7 +78,7 @@ namespace playersprites {
 		nameLabel->setAnchorPoint({ 0.f, 0.5f });
 		nameLabel->setPosition({ HEIGHT + 8.f, size.height * 0.62f });
 		nameLabel->setScale(0.5f);
-		nameLabel->limitLabelWidth(WIDTH - HEIGHT - CONTROLS_AREA, 0.5f, 0.1f);
+		nameLabel->limitLabelWidth(WIDTH - HEIGHT - CONTROLS_AREA - 22.f, 0.5f, 0.1f);
 		this->addChild(nameLabel);
 
 		auto creditsLine = buildCreditsLine(pack.meta);
@@ -94,6 +94,17 @@ namespace playersprites {
 		menu->setPosition({ 0.f, 0.f });
 		menu->setAnchorPoint({ 0.f, 0.f });
 		this->addChild(menu);
+
+		auto infoSprite = CCSprite::createWithSpriteFrameName("GJ_infoIcon_001.png");
+		infoSprite->setScale(0.5f);
+		m_infoButton = CCMenuItemSpriteExtra::create(infoSprite, target, infoSelector);
+		m_infoButton->setUserObject("pack-id"_spr, CCString::create(pack.id));
+		m_infoButton->setPosition({
+			nameLabel->getPositionX() + nameLabel->getScaledContentSize().width + 12.f,
+			nameLabel->getPositionY()
+		});
+		m_infoButton->setID(fmt::format("{}-info-btn", pack.id));
+		menu->addChild(m_infoButton);
 
 		auto offSpr = CCSprite::createWithSpriteFrameName("GJ_checkOff_001.png");
 		auto onSpr = CCSprite::createWithSpriteFrameName("GJ_checkOn_001.png");

@@ -9,7 +9,7 @@ class $modify(PSGarageLayer, GJGarageLayer) {
     bool init() {
         if (!GJGarageLayer::init()) return false;
 
-		auto editorSprite = CircleButtonSprite::create(CCSprite::createWithSpriteFrameName("diffIcon_05_btn_001.png"), CircleBaseColor::Blue, CircleBaseSize::SmallAlt);
+		auto editorSprite = CircleButtonSprite::create(CCSprite::createWithSpriteFrameName("geode.loader/grid-view.png"), CircleBaseColor::Blue, CircleBaseSize::SmallAlt);
         auto editorButton = CCMenuItemSpriteExtra::create(
             editorSprite,
             this,

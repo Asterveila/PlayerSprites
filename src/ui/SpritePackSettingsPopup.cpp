@@ -1,8 +1,8 @@
 #include "SpritePackSettingsPopup.hpp"
 #include "SettingsRowCell.hpp"
+#include "UIUtils.hpp"
 #include "../data/PackManager.hpp"
 #include "../data/PackSettings.hpp"
-#include <algorithm>
 
 namespace playersprites {
 
@@ -29,19 +29,32 @@ namespace playersprites {
 		float midX = size.width / 2.f;
 		float midY = size.height / 2.f;
 
-		bool packEnabled = settings::isPackEnabled(m_packId);
-		auto statusLabel = CCLabelBMFont::create(packEnabled ? "Pack is Enabled" : "Pack is Disabled", "chatFont.fnt");
-		statusLabel->setScale(0.6f);
-		statusLabel->setColor(packEnabled ? ccColor3B{ 100, 255, 100 } : ccColor3B{ 255, 90, 90 });
-		statusLabel->setPosition({ midX, size.height - 40.f });
-		statusLabel->setID("pack-status-label");
-		this->m_mainLayer->addChild(statusLabel, 2);
+		auto modeRow = UIUtils::row(8.f, AxisAlignment::Center, AxisAlignment::Center, false, "mode-toggles-row");
 
-		m_rowScrollLayer = ScrollLayer::create({ SettingsRowCell::WIDTH, 210.f });
+		auto classicRow = UIUtils::togglerRow(
+			"Enable Classic", settings::isModeEnabled(m_packId, false),
+			this, menu_selector(SpritePackSettingsPopup::onToggleClassic),
+			145.f, 0.35f, 0.6f, "classic-toggler-row"
+		);
+		modeRow->addChild(classicRow.container);
+
+		auto platformerRow = UIUtils::togglerRow(
+			"Enable Platformer", settings::isModeEnabled(m_packId, true),
+			this, menu_selector(SpritePackSettingsPopup::onTogglePlatformer),
+			170.f, 0.35f, 0.6f, "platformer-toggler-row"
+		);
+		modeRow->addChild(platformerRow.container);
+
+		modeRow->updateLayout();
+		modeRow->setPosition({ midX, size.height - 45.f });
+		modeRow->setScale(0.85f);
+		this->m_mainLayer->addChild(modeRow, 2);
+
+		m_rowScrollLayer = ScrollLayer::create({ SettingsRowCell::WIDTH, 200.f });
 		m_rowScrollLayer->setID("settings-row-scroll-layer");
 		m_rowScrollLayer->ignoreAnchorPointForPosition(false);
 		m_rowScrollLayer->setAnchorPoint({ 0.5f, 0.5f });
-		m_rowScrollLayer->setPosition({ midX, midY - 20.f });
+		m_rowScrollLayer->setPosition({ midX, midY - 25.f });
 		this->m_mainLayer->addChild(m_rowScrollLayer, 1);
 
 		auto scrollBg = CCLayerColor::create();
@@ -124,6 +137,16 @@ namespace playersprites {
 			std::max(totalHeight, SettingsRowCell::HEADER_HEIGHT)
 		});
 		m_rowScrollLayer->moveToTop();
+	}
+
+	void SpritePackSettingsPopup::onToggleClassic(CCObject*) {
+		bool newState = !settings::isModeEnabled(m_packId, false);
+		settings::setModeEnabled(m_packId, false, newState);
+	}
+
+	void SpritePackSettingsPopup::onTogglePlatformer(CCObject*) {
+		bool newState = !settings::isModeEnabled(m_packId, true);
+		settings::setModeEnabled(m_packId, true, newState);
 	}
 
 	void SpritePackSettingsPopup::onToggleGamemode(CCObject* sender) {

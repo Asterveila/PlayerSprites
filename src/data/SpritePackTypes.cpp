@@ -182,6 +182,28 @@ namespace playersprites {
 		return Ok(ev);
 	}
 
+	Result<void, std::string> GlobalAttributes::applyFrom(matjson::Value const& json) {
+		if (!json.isObject()) {
+			return Err(std::string("spr-pack.json: 'globalAttributes' must be an object"));
+		}
+
+		auto scaleRes = optionalFloat(json, "scale", "globalAttributes");
+		if (scaleRes.isErr()) return Err(scaleRes.unwrapErr());
+		if (auto newScale = scaleRes.unwrap()) {
+			if (*newScale <= 0.f) {
+				return Err(std::string("globalAttributes: 'scale' must be greater than 0"));
+			}
+			scale = *newScale;
+		}
+
+		pixelMode = optionalBool(json, "pixelMode", pixelMode);
+		keepRobotFire = optionalBool(json, "keepRobotFire", keepRobotFire);
+		keepSwingFires = optionalBool(json, "keepSwingFires", keepSwingFires);
+		keepDashFire = optionalBool(json, "keepDashFire", keepDashFire);
+
+		return Ok();
+	}
+
 	Result<SpritePackMeta, std::string> SpritePackMeta::parse(matjson::Value const& json) {
 		SpritePackMeta meta;
 
@@ -192,6 +214,15 @@ namespace playersprites {
 		auto authorRes = requireString(json, "author", "spr-pack.json");
 		if (authorRes.isErr()) return Err(authorRes.unwrapErr());
 		meta.author = authorRes.unwrap();
+
+		auto const& descriptionVal = json["description"];
+		if (!descriptionVal.isNull()) {
+			auto descriptionRes = descriptionVal.asString();
+			if (descriptionRes.isErr()) {
+				return Err(std::string("spr-pack.json: 'description' must be a string"));
+			}
+			meta.description = descriptionRes.unwrap();
+		}
 
 		auto const& creditsVal = json["credits"];
 		if (!creditsVal.isNull()) {
@@ -228,9 +259,7 @@ namespace playersprites {
 		return &evIt->second;
 	}
 
-	Result<SpritePack, std::string> SpritePack::parse(
-		std::string const& id, fs::path const& rootPath, matjson::Value const& json
-	) {
+	Result<SpritePack, std::string> SpritePack::parse(std::string const& id, fs::path const& rootPath, matjson::Value const& json) {
 		if (!json.isObject()) {
 			return Err(std::string("spr-pack.json: root must be an object"));
 		}
@@ -242,6 +271,12 @@ namespace playersprites {
 		pack.id = id;
 		pack.rootPath = rootPath;
 		pack.meta = metaRes.unwrap();
+
+		auto const& globalAttributesVal = json["globalAttributes"];
+		if (!globalAttributesVal.isNull()) {
+			auto attrRes = pack.globalAttributes.applyFrom(globalAttributesVal);
+			if (attrRes.isErr()) return Err(attrRes.unwrapErr());
+		}
 
 		auto const& eventsVal = json["events"];
 		if (eventsVal.isNull()) {
@@ -258,6 +293,10 @@ namespace playersprites {
 				return Err(std::string("spr-pack.json: each entry in 'events' must be an object keyed by gamemode"));
 			}
 			for (auto const& [gamemodeName, gamemodeJson] : block) {
+				if (gamemodeName == "globalAttributes") {
+					return Err(std::string("spr-pack.json: 'globalAttributes' goes at the root of the file, not inside 'events'"));
+				}
+
 				if (!gamemodeJson.isObject()) {
 					return Err(fmt::format("gamemode '{}': expected an object of events", gamemodeName));
 				}

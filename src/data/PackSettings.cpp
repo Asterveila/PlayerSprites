@@ -6,6 +6,9 @@ namespace playersprites::settings {
 		std::string packKey(std::string const& packId) {
 			return fmt::format("pack.{}.enabled", packId);
 		}
+		std::string modeKey(std::string const& packId, bool platformer) {
+			return fmt::format("mode.{}.{}.enabled", packId, platformer ? "platformer" : "classic");
+		}
 		std::string gamemodeKey(std::string const& packId, std::string const& gamemode) {
 			return fmt::format("gamemode.{}.{}.enabled", packId, gamemode);
 		}
@@ -19,6 +22,17 @@ namespace playersprites::settings {
 	}
 	void setPackEnabled(std::string const& packId, bool enabled) {
 		geode::Mod::get()->setSavedValue<bool>(packKey(packId), enabled);
+	}
+
+	bool isModeEnabled(std::string const& packId, bool platformer) {
+		return geode::Mod::get()->getSavedValue<bool>(modeKey(packId, platformer), true);
+	}
+	void setModeEnabled(std::string const& packId, bool platformer, bool enabled) {
+		geode::Mod::get()->setSavedValue<bool>(modeKey(packId, platformer), enabled);
+	}
+
+	bool isPackActive(std::string const& packId, bool platformer) {
+		return isPackEnabled(packId) && isModeEnabled(packId, platformer);
 	}
 
 	bool isGamemodeEnabled(std::string const& packId, std::string const& gamemode) {
