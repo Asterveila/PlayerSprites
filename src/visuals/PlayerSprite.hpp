@@ -2,9 +2,11 @@
 
 #include "../data/SpritePackTypes.hpp"
 
+using namespace geode::prelude;
+
 namespace playersprites {
 
-	class PlayerSprite : public cocos2d::CCNode {
+	class PlayerSprite : public CCNode {
 	protected:
 		enum class State {
 			Idle,
@@ -12,7 +14,7 @@ namespace playersprites {
 			Holding
 		};
 
-		cocos2d::CCSprite* m_sprite = nullptr;
+		CCSprite* m_sprite = nullptr;
 
 		State m_state = State::Idle;
 		bool m_currentCanBeInterrupted = true;
@@ -23,7 +25,7 @@ namespace playersprites {
 		std::vector<std::string> m_currentCancelOn;
 		std::optional<float> m_currentFadeOutTime;
 		float m_currentOffsetY = 0.f;
-		cocos2d::CCPoint m_basePosition = { 0.f, 0.f }; // the position of the PlayerSprite, NOT m_sprite, dumbass
+		CCPoint m_basePosition = { 0.f, 0.f }; // the position of the PlayerSprite, NOT m_sprite, dumbass
 
 		bool m_currentIsStateDriven = false;
 
@@ -44,7 +46,7 @@ namespace playersprites {
 	public:
 		static PlayerSprite* create();
 
-		static std::vector<cocos2d::CCSpriteFrame*> buildFrames(SpritePack const& pack, AnimEvent const& anim);
+		static std::vector<CCSpriteFrame*> buildFrames(SpritePack const& pack, AnimEvent const& anim);
 
 		bool triggerAnim(SpritePack const& pack, AnimEvent const& anim, std::string const& gamemode, std::string const& eventName, bool force = false, bool isStateDriven = false);
 
@@ -63,6 +65,8 @@ namespace playersprites {
 		bool currentLockRotation() const { return m_currentLockRotation; }
 		bool currentIsStateDriven() const { return m_currentIsStateDriven; }
 		bool currentInterruptBySelf() const { return m_currentInterruptBySelf; }
+
+		CCSprite* getSprite() const { return m_sprite; }
 
 		void setFlipped(bool flipped);
 

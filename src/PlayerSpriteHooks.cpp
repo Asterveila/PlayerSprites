@@ -62,7 +62,8 @@ class $modify(PSPlayerObject, PlayerObject) {
 	}
 
 	void updateModSprite() {
-		auto* sprite = m_fields->modSprite;
+		auto flds = m_fields.self();
+		auto* sprite = flds->modSprite;
 		if (!sprite) return;
 
 		auto gamemode = currentGamemodeName(this);
@@ -109,6 +110,11 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		bool showVanilla = !sprite->isPlaying() || sprite->currentKeepPlayer();
 		this->setVanillaVisible(showVanilla, pack->globalAttributes);
+
+		if (m_ghostTrail && Mod::get()->getSettingValue<std::string>("ghost-trail-behavior") == "replace") {
+			m_ghostTrail->m_iconSprite = sprite->getSprite();
+			m_ghostTrail->m_color = { 255, 255, 255 };
+		}
 	}
 
 	// TODO: this needs a LOOOOOOOOT of tweaking
