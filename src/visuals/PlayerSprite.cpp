@@ -1,4 +1,5 @@
 #include "PlayerSprite.hpp"
+#include <algorithm>
 
 namespace playersprites {
 
@@ -16,6 +17,14 @@ namespace playersprites {
 				num = std::string(width - num.size(), '0') + num;
 			}
 			return num;
+		}
+
+		bool isStateAnim(AnimEvent const& anim) {
+			if (anim.triggerOn.empty()) return anim.id == "Mod:Update" || anim.id == "Mod:Idle";
+			for (auto const& trigger : anim.triggerOn) {
+				if (trigger == "Mod:Update" || trigger == "Mod:Idle") return true;
+			}
+			return false;
 		}
 
 		void applyTextureMode(CCTexture2D* texture, bool pixelMode) {
@@ -54,7 +63,7 @@ namespace playersprites {
 		return true;
 	}
 
-	std::vector<CCSpriteFrame*> PlayerSprite::buildFrames(SpritePack const& pack, AnimEvent const& anim) {
+	std::vector<CCSpriteFrame*> PlayerSprite::buildFrames(SpritePack const& pack, AnimEvent const& anim, std::vector<int>* frameNumbers) {
 		std::vector<CCSpriteFrame*> frames;
 		auto folder = pack.rootPath / anim.subfolder;
 
@@ -71,7 +80,10 @@ namespace playersprites {
 			}
 			applyTextureMode(texture, pack.globalAttributes.pixelMode);
 			auto rect = CCRect(0, 0, texture->getContentSize().width, texture->getContentSize().height);
-			if (auto* frame = CCSpriteFrame::createWithTexture(texture, rect)) frames.push_back(frame);
+			if (auto* frame = CCSpriteFrame::createWithTexture(texture, rect)) {
+				frames.push_back(frame);
+				if (frameNumbers) frameNumbers->push_back(1);
+			}
 			return frames;
 		}
 
@@ -95,7 +107,10 @@ namespace playersprites {
 
 			auto rect = CCRect(0, 0, texture->getContentSize().width, texture->getContentSize().height);
 			auto* frame = CCSpriteFrame::createWithTexture(texture, rect);
-			if (frame) frames.push_back(frame);
+			if (frame) {
+				frames.push_back(frame);
+				if (frameNumbers) frameNumbers->push_back(i);
+			}
 		}
 
 		return frames;
@@ -111,7 +126,8 @@ namespace playersprites {
 
 		m_pendingPack = nullptr;
 
-		auto frames = buildFrames(pack, anim);
+		std::vector<int> frameNumbers;
+		auto frames = buildFrames(pack, anim, &frameNumbers);
 		if (frames.empty()) {
 			geode::log::warn("pack '{}' event {}/{} has no loadable frames, ignoring.", pack.id, gamemode, eventName);
 			return false;
@@ -124,10 +140,13 @@ namespace playersprites {
 
 		this->setPosition(m_basePosition);
 		m_sprite->setVisible(true);
+
 		m_sprite->setDisplayFrame(frames[0]);
 		this->setContentSize(m_sprite->getContentSize());
 
-		m_sprite->setScale(pack.globalAttributes.scale);
+		// PORTING TO MEDIUM MANUALLY SUCKS ASSSSSS GRAAAAHHHHHHHH
+		float scaleFactor = CCDirector::sharedDirector()->getContentScaleFactor() / 4;
+		m_sprite->setScale(pack.globalAttributes.scale * scaleFactor);
 
 		auto size = this->getContentSize();
 		m_currentOffsetY = anim.offsetY;
@@ -140,7 +159,7 @@ namespace playersprites {
 		m_currentHoldFor = anim.holdFor;
 		m_currentCancelOn = anim.cancelOn;
 		m_currentFadeOutTime = anim.fadeOutTime;
-		m_currentIsStateDriven = isStateDriven;
+		m_currentIsStateDriven = isStateDriven || isStateAnim(anim);
 		m_currentGamemode = gamemode;
 		m_currentEventName = eventName;
 
@@ -171,11 +190,32 @@ namespace playersprites {
 			frameArray->addObject(frame);
 		}
 
+		CCAnimation* loopAnimation = nullptr;
+		if (anim.loopAnim && !anim.skipForLoop.empty()) {
+			auto* loopFrameArray = CCArray::createWithCapacity(frames.size());
+			for (size_t i = 0; i < frames.size(); ++i) {
+				bool skipped = std::find(anim.skipForLoop.begin(), anim.skipForLoop.end(), frameNumbers[i]) != anim.skipForLoop.end();
+				if (!skipped) loopFrameArray->addObject(frames[i]);
+			}
+			if (loopFrameArray->count() > 0 && loopFrameArray->count() < frames.size()) {
+				loopAnimation = CCAnimation::createWithSpriteFrames(loopFrameArray, frameTime);
+			}
+		}
+
 		auto* animation = CCAnimation::createWithSpriteFrames(frameArray, frameTime);
+		if (loopAnimation) {
+			animation->setRestoreOriginalFrame(false);
+			loopAnimation->setRestoreOriginalFrame(false);
+		}
 		auto* animate = CCAnimate::create(animation);
 
 		if (anim.loopAnim) {
-			m_sprite->runAction(CCRepeatForever::create(animate));
+			if (loopAnimation) {
+				auto* onFirstRun = CCCallFuncO::create(this, callfuncO_selector(PlayerSprite::onFirstRunFinished), loopAnimation);
+				m_sprite->runAction(CCSequence::create(animate, onFirstRun, nullptr));
+			} else {
+				m_sprite->runAction(CCRepeatForever::create(animate));
+			}
 			if (m_currentHoldFor.has_value() && *m_currentHoldFor >= 0.f) {
 				this->scheduleOnce(schedule_selector(PlayerSprite::onHoldFinished), *m_currentHoldFor);
 			}
@@ -187,6 +227,10 @@ namespace playersprites {
 		m_state = State::Playing;
 
 		return true;
+	}
+
+	void PlayerSprite::onFirstRunFinished(CCObject* loopAnimation) {
+		m_sprite->runAction(CCRepeatForever::create(CCAnimate::create(static_cast<CCAnimation*>(loopAnimation))));
 	}
 
 	void PlayerSprite::onNonLoopFinished() {

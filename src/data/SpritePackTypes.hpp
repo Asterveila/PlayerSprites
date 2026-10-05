@@ -69,6 +69,11 @@ namespace playersprites {
 		// does NOT affect what OTHER events can do to it, that's still up to canBeInterrupted.
 		bool interruptBySelf = false;
 
+		// list of frame numbers to skip when an animation loops (after the first full loop, first loop plays ALL frames, then skips these for all later loops).
+		// frame numbers are the same as the files, not array-like indexes. if you wanna skip the first frame, use 1, not 0.
+		// requires loopAnim to be true.
+		std::vector<int> skipForLoop;
+
 		float rollFrameTime() const;
 
 		static geode::Result<AnimEvent, std::string> parse(std::string const& eventName, matjson::Value const& json);

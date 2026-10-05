@@ -135,6 +135,35 @@ namespace playersprites {
 		ev.interruptBySelf = optionalBool(json, "interruptBySelf", false);
 		ev.keepPlayer = optionalBool(json, "keepPlayer", false);
 
+		auto const& skipForLoopVal = json["skipForLoop"];
+		if (!skipForLoopVal.isNull()) {
+			if (!skipForLoopVal.isArray()) {
+				return Err(fmt::format("event '{}': 'skipForLoop' must be an array of frame numbers", eventName));
+			}
+			if (ev.singleFrame || !ev.loopAnim) {
+				geode::log::warn("event '{}': 'skipForLoop' does nothing on an animation that doesn't loop", eventName);
+			}
+			for (auto const& entry : skipForLoopVal) {
+				auto intRes = entry.asInt();
+				if (intRes.isErr()) {
+					return Err(fmt::format("event '{}': 'skipForLoop' entries must all be whole numbers", eventName));
+				}
+				int frameNumber = static_cast<int>(intRes.unwrap());
+				if (!ev.singleFrame && (frameNumber < 1 || frameNumber > ev.frameCount)) {
+					return Err(fmt::format(
+						"event '{}': 'skipForLoop' entry {} is out of range, frames go from 1 to {}",
+						eventName, frameNumber, ev.frameCount
+					));
+				}
+				if (std::find(ev.skipForLoop.begin(), ev.skipForLoop.end(), frameNumber) == ev.skipForLoop.end()) {
+					ev.skipForLoop.push_back(frameNumber);
+				}
+			}
+			if (!ev.singleFrame && static_cast<int>(ev.skipForLoop.size()) >= ev.frameCount) {
+				return Err(fmt::format("event '{}': 'skipForLoop' skips every frame, at least one has to be left to loop on", eventName));
+			}
+		}
+
 		auto holdForRes = optionalFloat(json, "holdFor", eventName);
 		if (holdForRes.isErr()) return Err(holdForRes.unwrapErr());
 		ev.holdFor = holdForRes.unwrap();

@@ -83,8 +83,8 @@ class $modify(PSPlayerObject, PlayerObject) {
 			sprite->stopAnim();
 		}
 
-		// bool moving = m_holdingLeft != m_holdingRight;
-		bool moving = std::fabs(m_platformerXVelocity) > 0.1f;
+		bool moving = m_holdingLeft != m_holdingRight;
+		// bool moving = std::fabs(m_platformerXVelocity) > 0.1f;
 		std::string stateEventName = (m_isPlatformer && !moving) ? "Mod:Idle" : "Mod:Update";
 
 		if (!sprite->isPlaying() || sprite->currentIsStateDriven()) {
