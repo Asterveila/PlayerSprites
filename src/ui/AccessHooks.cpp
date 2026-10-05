@@ -1,14 +1,20 @@
 #include <Geode/modify/GJGarageLayer.hpp>
 #include "SpritePackListPopup.hpp"
+#include "../data/PackManager.hpp"
 
 using namespace playersprites;
 using namespace geode::prelude;
+
+$on_mod(Loaded) {
+    PackManager::get().reload();
+};
 
 class $modify(PSGarageLayer, GJGarageLayer) {
 
     bool init() {
         if (!GJGarageLayer::init()) return false;
 
+		// @geode-ignore(unknown-resource)
 		auto editorSprite = CircleButtonSprite::create(CCSprite::createWithSpriteFrameName("geode.loader/grid-view.png"), CircleBaseColor::Blue, CircleBaseSize::SmallAlt);
         auto editorButton = CCMenuItemSpriteExtra::create(
             editorSprite,

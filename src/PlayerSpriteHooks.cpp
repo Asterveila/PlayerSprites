@@ -10,9 +10,23 @@ using namespace geode::prelude;
 using namespace playersprites;
 
 namespace {
-	SpritePack const* activePack(bool platformer) {
+	bool anyPackActive(bool platformer) {
 		for (auto const& pack : PackManager::get().getLoadedPacks()) {
-			if (settings::isPackActive(pack.id, platformer)) return &pack;
+			if (settings::isPackActive(pack.id, platformer)) return true;
+		}
+		return false;
+	}
+
+	SpritePack const* activePackFor(bool platformer, std::string const& gamemode) {
+		for (auto const& pack : PackManager::get().getLoadedPacks()) {
+			if (!settings::isPackActive(pack.id, platformer)) continue;
+
+			auto gmIt = pack.gamemodes.find(gamemode);
+			if (gmIt == pack.gamemodes.end() || gmIt->second.events.empty()) continue;
+
+			if (!settings::isGamemodeEnabled(pack.id, gamemode)) continue;
+
+			return &pack;
 		}
 		return nullptr;
 	}
@@ -51,21 +65,22 @@ class $modify(PSPlayerObject, PlayerObject) {
 		auto* sprite = m_fields->modSprite;
 		if (!sprite) return;
 
-		auto* pack = activePack(m_isPlatformer);
-		if (!pack) return;
-
 		auto gamemode = currentGamemodeName(this);
+		auto* pack = activePackFor(m_isPlatformer, gamemode);
 
-		bool gamemodeDeclared =
-			pack->gamemodes.find(gamemode) != pack->gamemodes.end() &&
-			settings::isGamemodeEnabled(pack->id, gamemode);
-		if (!gamemodeDeclared) {
+		if (!pack) {
+			if (!anyPackActive(m_isPlatformer)) return;
+
 			if (sprite->isPlaying()) sprite->stopAnim();
 			sprite->setVisible(false);
-			this->setVanillaVisible(true, pack->globalAttributes);
+			this->setVanillaVisible(true, GlobalAttributes{});
 			return;
 		}
 		sprite->setVisible(true);
+
+		if (sprite->isPlaying() && sprite->currentGamemode() != gamemode) {
+			sprite->stopAnim();
+		}
 
 		// bool moving = m_holdingLeft != m_holdingRight;
 		bool moving = std::fabs(m_platformerXVelocity) > 0.1f;
@@ -139,10 +154,9 @@ class $modify(PSPlayerObject, PlayerObject) {
 		auto* sprite = m_fields->modSprite;
 		if (!sprite) return;
 
-		auto* pack = activePack(m_isPlatformer);
-		if (!pack) return;
-
 		auto gamemode = currentGamemodeName(this);
+		auto* pack = activePackFor(m_isPlatformer, gamemode);
+		if (!pack) return;
 
 		if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:RetroDeath")) {
 			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
@@ -187,15 +201,15 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 		}
 		if (targets.empty()) return;
 
-		auto* pack = activePack(m_isPlatformer);
-		if (!pack) return;
-
 		for (auto* target : targets) {
 			auto* psPlayer = static_cast<PSPlayerObject*>(target);
 			auto* sprite = psPlayer->getModSprite();
 			if (!sprite) continue;
 
 			auto gamemode = currentGamemodeName(target);
+
+			auto* pack = activePackFor(m_isPlatformer, gamemode);
+			if (!pack) continue;
 
 			bool forceOverride = sprite->currentCancelsOn(rawName);
 
