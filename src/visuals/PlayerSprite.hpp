@@ -39,7 +39,7 @@ namespace playersprites {
 		bool init();
 
 		void onNonLoopFinished();
-		void onFirstRunFinished(cocos2d::CCObject* loopAnimation);
+		void onFirstRunFinished(CCObject* loopAnimation);
 		void onHoldFinished(float dt);
 
 		bool tryConsumePending();
@@ -47,7 +47,7 @@ namespace playersprites {
 	public:
 		static PlayerSprite* create();
 
-		static std::vector<cocos2d::CCSpriteFrame*> buildFrames(SpritePack const& pack, AnimEvent const& anim, std::vector<int>* frameNumbers = nullptr);
+		static std::vector<CCSpriteFrame*> buildFrames(SpritePack const& pack, AnimEvent const& anim, std::vector<int>* frameNumbers = nullptr);
 
 		bool triggerAnim(SpritePack const& pack, AnimEvent const& anim, std::string const& gamemode, std::string const& eventName, bool force = false, bool isStateDriven = false);
 

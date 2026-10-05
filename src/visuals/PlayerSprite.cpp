@@ -1,5 +1,4 @@
 #include "PlayerSprite.hpp"
-#include <algorithm>
 
 namespace playersprites {
 
