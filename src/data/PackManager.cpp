@@ -1,4 +1,5 @@
 #include "PackManager.hpp"
+#include "../core/SoundPlayer.hpp"
 #include <matjson.hpp>
 
 namespace playersprites {
@@ -41,10 +42,32 @@ namespace playersprites {
 			return Err(fmt::format("spr-pack.json is not valid json: {}", parseRes.unwrapErr()));
 		}
 
-		return SpritePack::parse(id, root, parseRes.unwrap());
+		auto packRes = SpritePack::parse(id, root, parseRes.unwrap());
+		if (packRes.isErr()) return Err(packRes.unwrapErr());
+		auto pack = packRes.unwrap();
+
+		// sounds.json is optional
+		auto soundsPath = root / "sounds.json";
+		if (fs::exists(soundsPath)) {
+			auto soundsRead = geode::utils::file::readString(soundsPath);
+			if (soundsRead.isErr()) {
+				return Err(fmt::format("could not read sounds.json: {}", soundsRead.unwrapErr()));
+			}
+			auto soundsParse = matjson::parse(soundsRead.unwrap());
+			if (soundsParse.isErr()) {
+				return Err(fmt::format("sounds.json is not valid json: {}", soundsParse.unwrapErr()));
+			}
+			auto soundsRes = SoundSet::parse(root, soundsParse.unwrap());
+			if (soundsRes.isErr()) return Err(soundsRes.unwrapErr());
+			pack.sounds = soundsRes.unwrap();
+		}
+
+		return geode::Ok(std::move(pack));
 	}
 
 	void PackManager::reload() {
+		audio::unloadAll();
+
 		m_registry = Registry::loadOrCreate();
 		m_loadedPacks.clear();
 		m_loadErrors.clear();

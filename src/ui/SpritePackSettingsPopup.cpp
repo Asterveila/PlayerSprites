@@ -1,5 +1,6 @@
 #include "SpritePackSettingsPopup.hpp"
 #include "SettingsRowCell.hpp"
+#include "SpritePackSoundsPopup.hpp"
 #include "UIUtils.hpp"
 #include "../data/PackManager.hpp"
 #include "../data/PackSettings.hpp"
@@ -45,6 +46,17 @@ namespace playersprites {
 		);
 		modeRow->addChild(platformerRow.container);
 
+		// SFX stuff only shows up for packs that actually come with a sounds.json file
+		bool hasSounds = pack && !pack->sounds.empty();
+		if (hasSounds) {
+			auto sfxRow = UIUtils::togglerRow(
+				"Enable SFX", settings::isSfxEnabled(m_packId),
+				this, menu_selector(SpritePackSettingsPopup::onToggleSfx),
+				110.f, 0.35f, 0.6f, "sfx-toggler-row"
+			);
+			modeRow->addChild(sfxRow.container);
+		}
+
 		modeRow->updateLayout();
 		modeRow->setPosition({ midX, size.height - 45.f });
 		modeRow->setScale(0.85f);
@@ -74,6 +86,18 @@ namespace playersprites {
 		auto folderMenu = CCMenu::create();
 		folderMenu->setPosition({ 0.f, 0.f });
 		folderMenu->addChild(folderBtn);
+
+		if (hasSounds) {
+			auto sfxLabel = CCLabelBMFont::create("SFX", "bigFont.fnt");
+			sfxLabel->setScale(0.5f);
+			auto sfxSpr = CircleButtonSprite::create(sfxLabel, CircleBaseColor::Blue, CircleBaseSize::Small);
+			sfxSpr->setScale(0.8f);
+			auto sfxBtn = CCMenuItemSpriteExtra::create(sfxSpr, this, menu_selector(SpritePackSettingsPopup::onOpenSounds));
+			sfxBtn->setID("open-sounds-btn");
+			sfxBtn->setPosition({ size.width, 0.f });
+			folderMenu->addChild(sfxBtn);
+		}
+
 		this->m_mainLayer->addChild(folderMenu, 2);
 
 		this->buildRows();
@@ -147,6 +171,15 @@ namespace playersprites {
 	void SpritePackSettingsPopup::onTogglePlatformer(CCObject*) {
 		bool newState = !settings::isModeEnabled(m_packId, true);
 		settings::setModeEnabled(m_packId, true, newState);
+	}
+
+	void SpritePackSettingsPopup::onToggleSfx(CCObject*) {
+		bool newState = !settings::isSfxEnabled(m_packId);
+		settings::setSfxEnabled(m_packId, newState);
+	}
+
+	void SpritePackSettingsPopup::onOpenSounds(CCObject*) {
+		SpritePackSoundsPopup::create(m_packId)->show();
 	}
 
 	void SpritePackSettingsPopup::onToggleGamemode(CCObject* sender) {

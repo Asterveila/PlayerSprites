@@ -1,4 +1,5 @@
 #include "SpritePackTypes.hpp"
+#include "EventShortcuts.hpp"
 #include <random>
 
 namespace playersprites {
@@ -43,6 +44,50 @@ namespace playersprites {
 				return Err(fmt::format("{}: field '{}' must be a number", ctx, field));
 			}
 			return Ok(std::optional<float>(static_cast<float>(res.unwrap())));
+		}
+
+		Result<std::vector<std::string>, std::string> stringList(matjson::Value const& value, std::string const& what) {
+			std::vector<std::string> out;
+			if (value.isString()) {
+				out.push_back(value.asString().unwrap());
+			} else if (value.isArray()) {
+				for (auto const& item : value) {
+					auto strRes = item.asString();
+					if (strRes.isErr()) {
+						return Err(fmt::format("{}: every entry must be a string", what));
+					}
+					out.push_back(strRes.unwrap());
+				}
+			} else {
+				return Err(fmt::format("{}: expected a string or an array of strings", what));
+			}
+			return Ok(std::move(out));
+		}
+
+		Result<std::optional<fs::path>, std::string> resolveSoundFile(fs::path const& normalRoot, std::string const& rel, std::string const& ctx) {
+			fs::path relPath = rel;
+
+			auto ext = relPath.extension().string();
+			std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+			if (ext != ".ogg" && ext != ".wav") {
+				return Err(fmt::format("{}: '{}' isn't a supported format, only .ogg and .wav work", ctx, rel));
+			}
+
+			if (relPath.is_absolute() || relPath.has_root_name() || relPath.has_root_directory()) {
+				return Err(fmt::format("{}: '{}' has to be a path relative to the pack's folder", ctx, rel));
+			}
+
+			auto full = (normalRoot / relPath).lexically_normal();
+			auto fromRoot = full.lexically_relative(normalRoot);
+			if (fromRoot.empty() || *fromRoot.begin() == fs::path("..")) {
+				return Err(fmt::format("{}: '{}' points outside of the pack's folder", ctx, rel));
+			}
+
+			if (!fs::exists(full)) {
+				geode::log::warn("{}: missing file {}", ctx, full.string());
+				return Ok(std::optional<fs::path>{});
+			}
+			return Ok(std::optional<fs::path>{ std::move(full) });
 		}
 
 		bool optionalBool(matjson::Value const& json, std::string const& field, bool defaultValue) {
@@ -229,6 +274,7 @@ namespace playersprites {
 		keepRobotFire = optionalBool(json, "keepRobotFire", keepRobotFire);
 		keepSwingFires = optionalBool(json, "keepSwingFires", keepSwingFires);
 		keepDashFire = optionalBool(json, "keepDashFire", keepDashFire);
+		noDeathEffects = optionalBool(json, "noDeathEffects", noDeathEffects);
 
 		return Ok();
 	}
@@ -268,6 +314,125 @@ namespace playersprites {
 		}
 
 		return Ok(meta);
+	}
+
+	SoundEntry const* SoundSet::entry(std::string const& gamemode, std::string const& id) const {
+		auto gmIt = gamemodes.find(gamemode);
+		if (gmIt == gamemodes.end()) return nullptr;
+		auto entryIt = gmIt->second.find(id);
+		if (entryIt == gmIt->second.end()) return nullptr;
+		return &entryIt->second;
+	}
+
+	std::vector<SoundEntry const*> SoundSet::matching(std::string const& gamemode, std::string const& eventName) const {
+		std::vector<SoundEntry const*> result;
+
+		auto gmIndexIt = index.find(gamemode);
+		if (gmIndexIt == index.end()) return result;
+		auto eventIt = gmIndexIt->second.find(eventName);
+		if (eventIt == gmIndexIt->second.end()) return result;
+
+		for (auto const& id : eventIt->second) {
+			if (auto* found = this->entry(gamemode, id)) result.push_back(found);
+		}
+		return result;
+	}
+
+	Result<SoundSet, std::string> SoundSet::parse(fs::path const& packRoot, matjson::Value const& json) {
+		if (!json.isObject()) {
+			return Err(std::string("sounds.json: root must be an object keyed by gamemode"));
+		}
+
+		auto const normalRoot = packRoot.lexically_normal();
+		SoundSet set;
+
+		for (auto const& [gamemodeName, gamemodeJson] : json) {
+			if (!gamemodeJson.isObject()) {
+				return Err(fmt::format("sounds.json: gamemode '{}' must be an object of sound entries", gamemodeName));
+			}
+
+			for (auto const& [entryId, entryJson] : gamemodeJson) {
+				auto ctx = fmt::format("sounds.json: {}/{}", gamemodeName, entryId);
+
+				SoundEntry entry;
+				entry.id = entryId;
+				std::vector<std::string> relPaths;
+
+				if (entryJson.isObject()) {
+					// full form
+					auto soundsRes = stringList(entryJson["sounds"], ctx + " 'sounds'");
+					if (soundsRes.isErr()) return Err(soundsRes.unwrapErr());
+					relPaths = soundsRes.unwrap();
+
+					auto const& triggerVal = entryJson["triggerOn"];
+					if (!triggerVal.isNull()) {
+						auto triggerRes = stringList(triggerVal, ctx + " 'triggerOn'");
+						if (triggerRes.isErr()) return Err(triggerRes.unwrapErr());
+						entry.triggerOn = triggerRes.unwrap();
+					}
+
+					entry.ordered = optionalBool(entryJson, "ordered", false);
+					entry.defaultEnabled = optionalBool(entryJson, "enabledByDefault", true);
+
+					auto resetRes = optionalFloat(entryJson, "resetAfter", ctx);
+					if (resetRes.isErr()) return Err(resetRes.unwrapErr());
+					if (auto resetAfter = resetRes.unwrap()) {
+						if (*resetAfter < 0.f) {
+							return Err(fmt::format("{}: 'resetAfter' can't be negative", ctx));
+						}
+						if (!entry.ordered) {
+							geode::log::warn("{}: 'resetAfter' does nothing without 'ordered'", ctx);
+						}
+						entry.resetAfter = *resetAfter;
+					}
+				} else {
+					auto filesRes = stringList(entryJson, ctx);
+					if (filesRes.isErr()) return Err(filesRes.unwrapErr());
+					relPaths = filesRes.unwrap();
+				}
+
+				if (relPaths.empty()) {
+					return Err(fmt::format("{}: needs at least one sound file", ctx));
+				}
+				if (entry.triggerOn.empty()) {
+					entry.triggerOn.push_back(entryId);
+				}
+
+				for (auto const& rel : relPaths) {
+					auto fileRes = resolveSoundFile(normalRoot, rel, ctx);
+					if (fileRes.isErr()) return Err(fileRes.unwrapErr());
+					if (auto file = fileRes.unwrap()) {
+						entry.files.push_back(std::move(*file));
+					}
+				}
+
+				if (entry.files.empty()) {
+					geode::log::warn("{}: none of its files exist, ignoring the entry", ctx);
+					continue;
+				}
+				set.gamemodes[gamemodeName][entryId] = std::move(entry);
+			}
+		}
+
+		for (auto const& [gamemodeName, entries] : set.gamemodes) {
+			auto& gmIndex = set.index[gamemodeName];
+			for (auto const& [id, entry] : entries) {
+				for (auto const& trigger : entry.triggerOn) {
+					auto addFor = [&](std::string const& realEvent) {
+						auto& ids = gmIndex[realEvent];
+						if (std::find(ids.begin(), ids.end(), id) == ids.end()) ids.push_back(id);
+					};
+
+					if (auto* covered = shortcuts::expand(trigger)) {
+						for (auto const& realEvent : *covered) addFor(realEvent);
+					} else {
+						addFor(trigger);
+					}
+				}
+			}
+		}
+
+		return Ok(std::move(set));
 	}
 
 	AnimEvent const* SpritePack::findEvent(std::string const& gamemode, std::string const& triggerName) const {
@@ -361,7 +526,19 @@ namespace playersprites {
 			for (auto const& [eventId, ev] : gmEvents.events) {
 				auto triggers = ev.triggerOn.empty() ? std::vector<std::string>{ eventId } : ev.triggerOn;
 				for (auto const& trigger : triggers) {
+					if (shortcuts::expand(trigger)) continue;
 					gmEvents.triggerIndex[trigger] = eventId;
+				}
+			}
+
+			for (auto const& [eventId, ev] : gmEvents.events) {
+				auto triggers = ev.triggerOn.empty() ? std::vector<std::string>{ eventId } : ev.triggerOn;
+				for (auto const& trigger : triggers) {
+					if (auto* covered = shortcuts::expand(trigger)) {
+						for (auto const& realEvent : *covered) {
+							gmEvents.triggerIndex.emplace(realEvent, eventId);
+						}
+					}
 				}
 			}
 		}

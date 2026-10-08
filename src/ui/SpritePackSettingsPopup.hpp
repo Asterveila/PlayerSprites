@@ -17,6 +17,8 @@ namespace playersprites {
 
 		void onToggleClassic(CCObject* sender);
 		void onTogglePlatformer(CCObject* sender);
+		void onToggleSfx(CCObject* sender);
+		void onOpenSounds(CCObject* sender);
 		void onToggleGamemode(CCObject* sender);
 		void onToggleEvent(CCObject* sender);
 		void onOpenFolder(CCObject* sender);

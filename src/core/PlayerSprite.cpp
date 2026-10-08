@@ -1,8 +1,9 @@
 #include "PlayerSprite.hpp"
+#include "../data/EventShortcuts.hpp"
 
 namespace playersprites {
 
-	using namespace cocos2d;
+	using namespace geode::prelude;
 
 	namespace {
 
@@ -42,7 +43,7 @@ namespace playersprites {
 			ret->autorelease();
 			return ret;
 		}
-		CC_SAFE_DELETE(ret);
+		delete ret;
 		return nullptr;
 	}
 
@@ -268,7 +269,7 @@ namespace playersprites {
 
 	bool PlayerSprite::currentCancelsOn(std::string const& eventName) const {
 		for (auto const& name : m_currentCancelOn) {
-			if (name == eventName) return true;
+			if (shortcuts::covers(name, eventName)) return true;
 		}
 		return false;
 	}
@@ -307,6 +308,7 @@ namespace playersprites {
 		m_sprite->setPositionY(y);
 	}
 
+	// needs tweaking, ts is barely noticeable :sob:
 	void PlayerSprite::playRetroDeathAction() {
 		auto* move = CCEaseBackIn::create(CCMoveBy::create(0.75f, { 0.f, -300.f }));
 		this->runAction(move);

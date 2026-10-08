@@ -1,7 +1,8 @@
-#include "visuals/PlayerSprite.hpp"
+#include "core/PlayerSprite.hpp"
 #include "GamemodeUtils.hpp"
 #include "data/PackManager.hpp"
 #include "data/PackSettings.hpp"
+#include "core/SoundPlayer.hpp"
 
 #include <Geode/modify/PlayerObject.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
@@ -155,14 +156,17 @@ class $modify(PSPlayerObject, PlayerObject) {
 	}
 
 	void playerDestroyed(bool noEffects) {
-		PlayerObject::playerDestroyed(noEffects);
-
-		auto* sprite = m_fields->modSprite;
-		if (!sprite) return;
-
 		auto gamemode = currentGamemodeName(this);
 		auto* pack = activePackFor(m_isPlatformer, gamemode);
-		if (!pack) return;
+
+		if (pack && pack->globalAttributes.noDeathEffects) noEffects = true;
+
+		PlayerObject::playerDestroyed(noEffects);
+
+		audio::playForEvent(m_isPlatformer, gamemode, "Mod:Death");
+
+		auto* sprite = m_fields->modSprite;
+		if (!sprite || !pack) return;
 
 		if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:RetroDeath")) {
 			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
@@ -176,11 +180,20 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 	void resetObject() {
 		PlayerObject::resetObject();
+		audio::resetSequences();
 		if (auto* sprite = m_fields->modSprite) sprite->resetState();
 	}
 };
 
 class $modify(PSBaseGameLayer, GJBaseGameLayer) {
+	bool init() {
+		if (!GJBaseGameLayer::init()) return false;
+
+		audio::preloadAll();
+
+		return true;
+	}
+
 	void gameEventTriggered(GJGameEvent event, int material, int playerID) {
 		static bool ignoreNext = false;
 
@@ -207,12 +220,19 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 		}
 		if (targets.empty()) return;
 
+		// i used the GlobalSounds to destroy the GlobalSounds (again)
+		std::unordered_set<std::string> soundGamemodes;
+
 		for (auto* target : targets) {
 			auto* psPlayer = static_cast<PSPlayerObject*>(target);
+			auto gamemode = currentGamemodeName(target);
+
+			if (soundGamemodes.insert(gamemode).second) {
+				audio::playForEvent(m_isPlatformer, gamemode, rawName);
+			}
+
 			auto* sprite = psPlayer->getModSprite();
 			if (!sprite) continue;
-
-			auto gamemode = currentGamemodeName(target);
 
 			auto* pack = activePackFor(m_isPlatformer, gamemode);
 			if (!pack) continue;
@@ -220,7 +240,7 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 			bool forceOverride = sprite->currentCancelsOn(rawName);
 
 			auto* anim = findEnabledEvent(*pack, gamemode, rawName);
-			// geode::log::debug("!!!!-- EVENT PASSED HERE: gamemode={}, anim found={}, forceOverride={}", rawName, gamemode, anim != nullptr, forceOverride);
+			// geode::log::debug("!! -- EVENT PASSED: event={} gamemode={} animFound={} forceOverride={}", rawName, gamemode, anim != nullptr, forceOverride);
 
 			if (anim) {
 				bool alreadyPlayingThis = sprite->isPlaying() && sprite->currentGamemode() == gamemode && sprite->currentEventName() == anim->id;

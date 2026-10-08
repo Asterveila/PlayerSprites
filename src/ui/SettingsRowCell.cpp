@@ -1,5 +1,5 @@
 #include "SettingsRowCell.hpp"
-#include "../visuals/PlayerSprite.hpp"
+#include "../core/PlayerSprite.hpp"
 #include <algorithm>
 
 namespace playersprites {

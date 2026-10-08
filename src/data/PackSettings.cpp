@@ -15,6 +15,13 @@ namespace playersprites::settings {
 		std::string eventKey(std::string const& packId, std::string const& gamemode, std::string const& eventId) {
 			return fmt::format("event.{}.{}.{}.enabled", packId, gamemode, eventId);
 		}
+
+		std::string sfxKey(std::string const& packId) {
+			return fmt::format("sfx.{}.enabled", packId);
+		}
+		std::string soundKey(std::string const& packId, std::string const& gamemode, std::string const& eventName) {
+			return fmt::format("sound.{}.{}.{}.enabled", packId, gamemode, eventName);
+		}
 	}
 
 	bool isPackEnabled(std::string const& packId) {
@@ -47,6 +54,20 @@ namespace playersprites::settings {
 	}
 	void setEventEnabled(std::string const& packId, std::string const& gamemode, std::string const& eventId, bool enabled) {
 		geode::Mod::get()->setSavedValue<bool>(eventKey(packId, gamemode, eventId), enabled);
+	}
+
+	bool isSfxEnabled(std::string const& packId) {
+		return geode::Mod::get()->getSavedValue<bool>(sfxKey(packId), true);
+	}
+	void setSfxEnabled(std::string const& packId, bool enabled) {
+		geode::Mod::get()->setSavedValue<bool>(sfxKey(packId), enabled);
+	}
+
+	bool isSoundEnabled(std::string const& packId, std::string const& gamemode, std::string const& entryId, bool defaultValue) {
+		return geode::Mod::get()->getSavedValue<bool>(soundKey(packId, gamemode, entryId), defaultValue);
+	}
+	void setSoundEnabled(std::string const& packId, std::string const& gamemode, std::string const& eventName, bool enabled) {
+		geode::Mod::get()->setSavedValue<bool>(soundKey(packId, gamemode, eventName), enabled);
 	}
 
 }
