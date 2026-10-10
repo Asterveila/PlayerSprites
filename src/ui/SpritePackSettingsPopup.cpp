@@ -62,6 +62,23 @@ namespace playersprites {
 		modeRow->setScale(0.85f);
 		this->m_mainLayer->addChild(modeRow, 2);
 
+		if (pack) {
+			auto exportArrow = CCSprite::create("exportBtn.png"_spr);
+			auto exportSpr = CircleButtonSprite::create(exportArrow, CircleBaseColor::Pink, CircleBaseSize::Small);
+			exportSpr->setScale(1.1f);
+			auto exportBtn = CCMenuItemSpriteExtra::create(exportSpr, this, menu_selector(SpritePackSettingsPopup::onExport));
+			exportBtn->setID("export-pack-btn");
+			exportBtn->setPosition({ size.width - 30.f, size.height - 32.f });
+
+			exportArrow->setPositionY(exportArrow->getPositionY() + 2.f);
+
+			auto exportMenu = CCMenu::create();
+			exportMenu->setPosition({ 0.f, 0.f });
+			exportMenu->addChild(exportBtn);
+			exportMenu->setID("export-menu");
+			this->m_mainLayer->addChild(exportMenu, 2);
+		}
+
 		m_rowScrollLayer = ScrollLayer::create({ SettingsRowCell::WIDTH, 200.f });
 		m_rowScrollLayer->setID("settings-row-scroll-layer");
 		m_rowScrollLayer->ignoreAnchorPointForPosition(false);
@@ -78,14 +95,8 @@ namespace playersprites {
 		scrollBg->setPosition(m_rowScrollLayer->getPosition());
 		this->m_mainLayer->addChild(scrollBg, 0);
 
-		auto folderSpr = CircleButtonSprite::create(CCSprite::createWithSpriteFrameName("folderIcon_001.png"), CircleBaseColor::Green, CircleBaseSize::Small);
-		folderSpr->setScale(0.8f);
-		auto folderBtn = CCMenuItemSpriteExtra::create(folderSpr, this, menu_selector(SpritePackSettingsPopup::onOpenFolder));
-		folderBtn->setID("open-pack-folder-btn");
-
-		auto folderMenu = CCMenu::create();
-		folderMenu->setPosition({ 0.f, 0.f });
-		folderMenu->addChild(folderBtn);
+		auto controlsMenu = CCMenu::create();
+		controlsMenu->setPosition({ 0.f, 0.f });
 
 		if (hasSounds) {
 			auto sfxLabel = CCLabelBMFont::create("SFX", "bigFont.fnt");
@@ -95,10 +106,10 @@ namespace playersprites {
 			auto sfxBtn = CCMenuItemSpriteExtra::create(sfxSpr, this, menu_selector(SpritePackSettingsPopup::onOpenSounds));
 			sfxBtn->setID("open-sounds-btn");
 			sfxBtn->setPosition({ size.width, 0.f });
-			folderMenu->addChild(sfxBtn);
+			controlsMenu->addChild(sfxBtn);
 		}
 
-		this->m_mainLayer->addChild(folderMenu, 2);
+		this->m_mainLayer->addChild(controlsMenu, 2);
 
 		this->buildRows();
 
@@ -204,10 +215,38 @@ namespace playersprites {
 		settings::setEventEnabled(m_packId, gamemode, eventId, newState);
 	}
 
+	/*
 	void SpritePackSettingsPopup::onOpenFolder(CCObject*) {
 		auto* pack = PackManager::get().findPack(m_packId);
 		if (!pack) return;
 		geode::utils::file::openFolder(pack->rootPath);
+	}
+	*/
+
+	void SpritePackSettingsPopup::onExport(CCObject*) {
+		auto res = transfer::exportPack(m_packId);
+		if (res.isErr()) {
+			FLAlertLayer::create("Export failed...", res.unwrapErr(), "aw...")->show();
+			return;
+		}
+
+		auto zipPath = std::move(res).unwrap();
+		FLAlertLayer::create(
+			"Export Successful!", 
+			fmt::format("Successfully exported pack to {}! \n\nIf this isn't your preferred folder for exports, please change it in the mod's config.", geode::utils::string::pathToString(zipPath.filename())),
+			"OK"
+		)->show();
+
+		/*
+		Notification::create(
+			fmt::format("Exported {}", geode::utils::string::pathToString(zipPath.filename())),
+			NotificationIcon::Success
+		)->show();
+		*/
+
+		#ifdef GEODE_IS_DESKTOP
+			file::openFolder(zipPath.parent_path()); // this would prolly get annoying on android chat im #ngl
+		#endif
 	}
 
 }

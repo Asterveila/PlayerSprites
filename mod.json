@@ -15,9 +15,15 @@
 		"ghost-trail-behavior": {
 			"type": "string",
 			"name": "Ghost Trail Behavior",
-			"description": "Defines how to handle GD's Ghost Trail when enabled, names are pretty self explanatory. \n\n- Untouched: Ghost Trail remains the same, will show the Vanilla GD icon sprites. \n\n-Replace: Will make the Ghost Trail show your currently active Sprite pack's sprite. \n\n- Disable: Disables Ghost Trail altogether.",
+			"description": "Defines how to handle GD's Ghost Trail when enabled, names are pretty self explanatory. \n\n- Untouched: Ghost Trail remains the same, will show the Vanilla GD icon sprites. \n\n- Replace: Will make the Ghost Trail show your currently active Sprite pack's sprite. \n\n- Disable: Disables Ghost Trail altogether.",
 			"default": "replace",
 			"one-of": ["untouched", "replace", "disable"]
+		},
+		"export-folder": {
+			"type": "folder",
+			"name": "Export Folder",
+			"description": "Where exported sprite packs get saved as .zip files.",
+			"default": "{mod_save_dir}/exports"
 		}
 	},
 	"resources": {

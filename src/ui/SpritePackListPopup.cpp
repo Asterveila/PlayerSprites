@@ -28,7 +28,7 @@ namespace playersprites {
 		m_packScrollLayer->setID("sprite-pack-scroll-layer");
 		m_packScrollLayer->ignoreAnchorPointForPosition(false);
 		m_packScrollLayer->setAnchorPoint({ 0.5f, 0.5f });
-		m_packScrollLayer->setPosition({ midX, size.height / 2.f + 5.f });
+		m_packScrollLayer->setPosition({ midX, size.height / 2.f + 7.f });
 		this->m_mainLayer->addChild(m_packScrollLayer, 1);
 
 		auto scrollBg = CCLayerColor::create();
@@ -41,17 +41,50 @@ namespace playersprites {
 		scrollBg->setPosition(m_packScrollLayer->getPosition());
 		this->m_mainLayer->addChild(scrollBg, 0);
 
+		auto controlsMenu = CCMenu::create();
+		controlsMenu->setContentSize(size);
+		controlsMenu->ignoreAnchorPointForPosition(false);
+		controlsMenu->setAnchorPoint({ 0, 0 });
+		controlsMenu->setPosition({ 0, 0 });
+		controlsMenu->setID("controls-menu");
+		this->m_mainLayer->addChild(controlsMenu);
+
 		auto reloadSprite = ButtonSprite::create("Reload");
 		reloadSprite->setScale(0.7f);
 		auto* reloadBtn = CCMenuItemSpriteExtra::create(
 			reloadSprite, this, menu_selector(SpritePackListPopup::onReload)
 		);
 		reloadBtn->setID("reload-btn");
+		reloadBtn->setPosition({ midX, 22.f });
 
-		auto reloadMenu = CCMenu::create();
-		reloadMenu->addChild(reloadBtn);
-		reloadMenu->setPosition({ midX, 22.f });
-		this->m_mainLayer->addChild(reloadMenu, 2);
+		controlsMenu->addChild(reloadBtn);
+
+		auto settingsSpr = CCSprite::createWithSpriteFrameName("GJ_optionsBtn_001.png");
+		settingsSpr->setScale(0.75f);
+		auto settingsBtn = CCMenuItemSpriteExtra::create(settingsSpr, this, menu_selector(SpritePackListPopup::onModSettings));
+		settingsBtn->setID("mod-settings-btn");
+		settingsBtn->setPosition({ 35.f, 28.f });
+
+		controlsMenu->addChild(settingsBtn);
+		
+		auto importArrow = CCSprite::create("importBtn.png"_spr);
+		auto importSpr = CircleButtonSprite::create(importArrow, CircleBaseColor::Green, CircleBaseSize::MediumAlt);
+		importArrow->setScale(0.85f);
+		importSpr->setScale(0.75f);
+		importArrow->setPositionY(importArrow->getPositionY() + 2.f);
+		auto importBtn = CCMenuItemSpriteExtra::create(importSpr, this, menu_selector(SpritePackListPopup::onImport));
+		importBtn->setID("import-pack-btn");
+		importBtn->setPosition({ settingsBtn->getContentWidth() + 40.f, 28.f });
+
+		controlsMenu->addChild(importBtn);
+
+		auto folderSpr = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
+		folderSpr->setScale(1.1f);
+		auto folderBtn = CCMenuItemSpriteExtra::create(folderSpr, this, menu_selector(SpritePackListPopup::onOpenFolder));
+		folderBtn->setID("open-pack-folder-btn");
+		folderBtn->setPosition({ size.width - 35.f, 25.f });
+
+		controlsMenu->addChild(folderBtn);
 
 		this->buildList();
 
@@ -98,6 +131,32 @@ namespace playersprites {
 		Notification::create(fmt::format("Reloaded {} packs!", PackManager::get().getLoadedPacks().size()), NotificationIcon::Success, 0.5f)->show();
 	}
 
+	void SpritePackListPopup::onImport(CCObject*) {
+		m_importListener.spawn(file::pick(file::PickMode::OpenFile, {
+			.filters = {{
+				.description = "Sprite Packs",
+				.files = { "*.zip" }
+			}}
+		}), [this](Result<std::optional<std::filesystem::path>> res) {
+			if (res.isErr()) {
+				FLAlertLayer::create("Import failed!", fmt::format("couldn't open the file picker: {}", res.unwrapErr()), "OK")->show();
+				return;
+			}
+
+			auto path = std::move(res).unwrap();
+			if (!path.has_value()) return;
+
+			auto importRes = transfer::importPack(path.value());
+			if (importRes.isErr()) {
+				FLAlertLayer::create("Import failed...", importRes.unwrapErr(), "aw...")->show();
+				return;
+			}
+
+			Notification::create(fmt::format("Imported '{}'!", importRes.unwrap()), NotificationIcon::Success)->show();
+			this->buildList();
+		});
+	}
+
 	void SpritePackListPopup::onTogglePack(CCObject* sender) {
 		auto* btn = static_cast<CCMenuItemToggler*>(sender);
 		auto* idObj = static_cast<CCString*>(btn->getUserObject("pack-id"_spr));
@@ -127,6 +186,14 @@ namespace playersprites {
 		std::string id = idObj->getCString();
 
 		SpritePackSettingsPopup::create(id)->show();
+	}
+
+	void SpritePackListPopup::onOpenFolder(CCObject *sender) {
+		utils::file::openFolder(Mod::get()->getConfigDir() / "packs");
+	}
+
+	void SpritePackListPopup::onModSettings(CCObject *sender) {
+		geode::openSettingsPopup(Mod::get());
 	}
 
 }

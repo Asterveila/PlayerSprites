@@ -112,9 +112,14 @@ class $modify(PSPlayerObject, PlayerObject) {
 		bool showVanilla = !sprite->isPlaying() || sprite->currentKeepPlayer();
 		this->setVanillaVisible(showVanilla, pack->globalAttributes);
 
-		if (m_ghostTrail && Mod::get()->getSettingValue<std::string>("ghost-trail-behavior") == "replace") {
-			m_ghostTrail->m_iconSprite = sprite->getSprite();
-			m_ghostTrail->m_color = { 255, 255, 255 };
+		if (m_ghostTrail) {
+			if (Mod::get()->getSettingValue<std::string>("ghost-trail-behavior") == "replace") {
+				m_ghostTrail->m_iconSprite = sprite->getSprite();
+				m_ghostTrail->m_color = { 255, 255, 255 };
+			} else if (Mod::get()->getSettingValue<std::string>("ghost-trail-behavior") == "disable") {
+				m_ghostTrail->setVisible(false);
+			}
+			
 		}
 	}
 

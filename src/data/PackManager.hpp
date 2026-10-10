@@ -2,6 +2,7 @@
 
 #include "Registry.hpp"
 #include "SpritePackTypes.hpp"
+#include <Geode/Result.hpp>
 
 namespace playersprites {
 
@@ -25,5 +26,12 @@ namespace playersprites {
 
 		SpritePack const* findPack(std::string const& id) const;
 	};
+
+}
+
+namespace playersprites::transfer {
+
+	geode::Result<std::string, std::string> importPack(std::filesystem::path const& zipPath);
+	geode::Result<std::filesystem::path, std::string> exportPack(std::string const& packId);
 
 }

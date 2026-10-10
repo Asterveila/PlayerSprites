@@ -21,7 +21,7 @@ namespace playersprites {
 		void onOpenSounds(CCObject* sender);
 		void onToggleGamemode(CCObject* sender);
 		void onToggleEvent(CCObject* sender);
-		void onOpenFolder(CCObject* sender);
+		void onExport(CCObject* sender);
 
 	public:
 		static SpritePackSettingsPopup* create(std::string const& packId);
