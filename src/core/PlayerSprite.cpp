@@ -70,12 +70,12 @@ namespace playersprites {
 		if (anim.singleFrame) {
 			auto path = folder / fmt::format("{}.png", anim.spriteName);
 			if (!fs::exists(path)) {
-				geode::log::warn("pack '{}' is missing single-frame file {}", pack.id, path.string());
+				geode::log::warn("pack '{}' is missing single-frame file {}", pack.id, utils::string::pathToString(path));
 				return frames;
 			}
-			auto* texture = CCTextureCache::sharedTextureCache()->addImage(path.string().c_str(), false);
+			auto* texture = CCTextureCache::sharedTextureCache()->addImage(utils::string::pathToString(path).c_str(), false);
 			if (!texture) {
-				geode::log::warn("pack '{}' failed to load texture {}", pack.id, path.string());
+				geode::log::warn("pack '{}' failed to load texture {}", pack.id, utils::string::pathToString(path));
 				return frames;
 			}
 			applyTextureMode(texture, pack.globalAttributes.pixelMode);
@@ -94,13 +94,13 @@ namespace playersprites {
 			auto path = folder / fileName;
 
 			if (!fs::exists(path)) {
-				geode::log::warn("pack '{}' is missing frame file {}", pack.id, path.string());
+				geode::log::warn("pack '{}' is missing frame file {}", pack.id, utils::string::pathToString(path));
 				continue;
 			}
 
-			auto* texture = CCTextureCache::sharedTextureCache()->addImage(path.string().c_str(), false);
+			auto* texture = CCTextureCache::sharedTextureCache()->addImage(utils::string::pathToString(path).c_str(), false);
 			if (!texture) {
-				geode::log::warn("pack '{}' failed to load texture {}", pack.id, path.string());
+				geode::log::warn("pack '{}' failed to load texture {}", pack.id, utils::string::pathToString(path));
 				continue;
 			}
 			applyTextureMode(texture, pack.globalAttributes.pixelMode);
@@ -149,6 +149,7 @@ namespace playersprites {
 		m_sprite->setScale(pack.globalAttributes.scale * scaleFactor);
 
 		auto size = this->getContentSize();
+		m_currentOffsetX = anim.offsetX;
 		m_currentOffsetY = anim.offsetY;
 		m_sprite->setPosition({ size.width / 2.f + anim.offsetX, size.height / 2.f + anim.offsetY });
 
@@ -166,6 +167,7 @@ namespace playersprites {
 		if (!anim.lockRotation) {
 			this->setRotation(0.f);
 			m_sprite->setFlipY(false);
+			m_flipped = false;
 		}
 
 		if (anim.singleFrame) {
@@ -286,6 +288,7 @@ namespace playersprites {
 		m_currentHoldFor.reset();
 		m_currentCancelOn.clear();
 		m_currentFadeOutTime.reset();
+		m_currentOffsetX = 0.f;
 		m_currentOffsetY = 0.f;
 		m_currentIsStateDriven = false;
 		m_pendingPack = nullptr;
@@ -296,10 +299,12 @@ namespace playersprites {
 		this->setPosition(m_basePosition);
 		this->setRotation(0.f);
 		m_sprite->setFlipY(false);
+		m_flipped = false;
 		m_sprite->setVisible(false);
 	}
 
 	void PlayerSprite::setFlipped(bool flipped) {
+		m_flipped = flipped;
 		m_sprite->setFlipY(flipped);
 
 		auto size = this->getContentSize();
@@ -319,6 +324,10 @@ namespace playersprites {
 			nullptr
 		);
 		this->runAction(fadeAway);
+	}
+
+	CCPoint PlayerSprite::getCurrentOffset() const {
+		return { m_currentOffsetX, m_flipped ? -m_currentOffsetY : m_currentOffsetY };
 	}
 
 }

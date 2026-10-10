@@ -67,7 +67,7 @@ namespace playersprites {
 
 		controlsMenu->addChild(settingsBtn);
 		
-		auto importArrow = CCSprite::create("importBtn.png"_spr);
+		auto importArrow = CCSprite::createWithSpriteFrameName("importBtn.png"_spr);
 		auto importSpr = CircleButtonSprite::create(importArrow, CircleBaseColor::Green, CircleBaseSize::MediumAlt);
 		importArrow->setScale(0.85f);
 		importSpr->setScale(0.75f);

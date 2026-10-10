@@ -30,40 +30,53 @@ namespace playersprites {
 		float midX = size.width / 2.f;
 		float midY = size.height / 2.f;
 
-		auto modeRow = UIUtils::row(8.f, AxisAlignment::Center, AxisAlignment::Center, false, "mode-toggles-row");
+		auto controlsRow = UIUtils::row(2.f, AxisAlignment::Center, AxisAlignment::Center, false, "mode-toggles-row");
+		float togglerScales = 0.9f;
 
-		auto classicRow = UIUtils::togglerRow(
-			"Enable Classic", settings::isModeEnabled(m_packId, false),
-			this, menu_selector(SpritePackSettingsPopup::onToggleClassic),
-			145.f, 0.35f, 0.6f, "classic-toggler-row"
+		auto classicRow = UIUtils::visToggler(
+			settings::isModeEnabled(m_packId, false),
+			this, 
+			menu_selector(SpritePackSettingsPopup::onToggleClassic),
+			togglerScales, 
+			"classic-toggler-row",
+			"classicSmallOff.png"_spr,
+			"classicSmallOn.png"_spr
 		);
-		modeRow->addChild(classicRow.container);
+		controlsRow->addChild(classicRow.container);
 
-		auto platformerRow = UIUtils::togglerRow(
-			"Enable Platformer", settings::isModeEnabled(m_packId, true),
-			this, menu_selector(SpritePackSettingsPopup::onTogglePlatformer),
-			170.f, 0.35f, 0.6f, "platformer-toggler-row"
+		auto platformerRow = UIUtils::visToggler(
+			settings::isModeEnabled(m_packId, true),
+			this, 
+			menu_selector(SpritePackSettingsPopup::onTogglePlatformer),
+			togglerScales, 
+			"platformer-toggler-row",
+			"platSmallOff.png"_spr,
+			"platSmallOn.png"_spr
 		);
-		modeRow->addChild(platformerRow.container);
+		controlsRow->addChild(platformerRow.container);
 
 		// SFX stuff only shows up for packs that actually come with a sounds.json file
 		bool hasSounds = pack && !pack->sounds.empty();
 		if (hasSounds) {
-			auto sfxRow = UIUtils::togglerRow(
-				"Enable SFX", settings::isSfxEnabled(m_packId),
-				this, menu_selector(SpritePackSettingsPopup::onToggleSfx),
-				110.f, 0.35f, 0.6f, "sfx-toggler-row"
+			auto sfxRow = UIUtils::visToggler(
+				settings::isSfxEnabled(m_packId),
+				this, 
+				menu_selector(SpritePackSettingsPopup::onToggleSfx), 
+				togglerScales,
+				"sfx-toggler-row",
+				"sfxSmallOff.png"_spr,
+				"sfxSmallOn.png"_spr
 			);
-			modeRow->addChild(sfxRow.container);
+			controlsRow->addChild(sfxRow.container);
 		}
 
-		modeRow->updateLayout();
-		modeRow->setPosition({ midX, size.height - 45.f });
-		modeRow->setScale(0.85f);
-		this->m_mainLayer->addChild(modeRow, 2);
+		controlsRow->updateLayout();
+		controlsRow->setPosition({ midX, size.height - 47.f });
+		// controlsRow->setScale(0.85f);
+		this->m_mainLayer->addChild(controlsRow, 2);
 
 		if (pack) {
-			auto exportArrow = CCSprite::create("exportBtn.png"_spr);
+			auto exportArrow = CCSprite::createWithSpriteFrameName("exportBtn.png"_spr);
 			auto exportSpr = CircleButtonSprite::create(exportArrow, CircleBaseColor::Pink, CircleBaseSize::Small);
 			exportSpr->setScale(1.1f);
 			auto exportBtn = CCMenuItemSpriteExtra::create(exportSpr, this, menu_selector(SpritePackSettingsPopup::onExport));

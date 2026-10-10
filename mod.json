@@ -22,14 +22,19 @@
 		"export-folder": {
 			"type": "folder",
 			"name": "Export Folder",
-			"description": "Where exported sprite packs get saved as .zip files.",
+			"description": "Defines where exported sprite packs get saved as .zip files.",
 			"default": "{mod_save_dir}/exports"
 		}
 	},
 	"resources": {
 		"sprites": [
 			"resources/*.png"
-		]
+		],
+		"spritesheets": {
+			"PS_UISheet": [
+				"resources/ui/*.png"
+			]
+		}
 	},
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3"

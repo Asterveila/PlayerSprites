@@ -22,7 +22,7 @@ namespace playersprites {
 		auto root = Registry::packsDir() / id;
 
 		if (!fs::exists(root) || !fs::is_directory(root)) {
-			return Err(fmt::format("pack folder does not exist: {}", root.string()));
+			return Err(fmt::format("pack folder does not exist: {}", utils::string::pathToString(root)));
 		}
 
 		auto packJsonPath = root / "spr-pack.json";

@@ -2,6 +2,8 @@
 #include "EventShortcuts.hpp"
 #include <random>
 
+using namespace geode::prelude;
+
 namespace playersprites {
 
 	using geode::Ok;
@@ -67,7 +69,7 @@ namespace playersprites {
 		Result<std::optional<fs::path>, std::string> resolveSoundFile(fs::path const& normalRoot, std::string const& rel, std::string const& ctx) {
 			fs::path relPath = rel;
 
-			auto ext = relPath.extension().string();
+			auto ext = utils::string::pathToString(relPath.extension());
 			std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 			if (ext != ".ogg" && ext != ".wav") {
 				return Err(fmt::format("{}: '{}' isn't a supported format, only .ogg and .wav work", ctx, rel));
@@ -84,7 +86,7 @@ namespace playersprites {
 			}
 
 			if (!fs::exists(full)) {
-				geode::log::warn("{}: missing file {}", ctx, full.string());
+				geode::log::warn("{}: missing file {}", ctx, utils::string::pathToString(full));
 				return Ok(std::optional<fs::path>{});
 			}
 			return Ok(std::optional<fs::path>{ std::move(full) });

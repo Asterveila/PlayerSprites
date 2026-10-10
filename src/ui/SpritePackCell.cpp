@@ -24,7 +24,7 @@ namespace playersprites {
 			auto path = rootPath / "pack.png";
 			if (!fs::exists(path)) return CCSprite::create();
 
-			auto* texture = CCTextureCache::sharedTextureCache()->addImage(path.string().c_str(), false);
+			auto* texture = CCTextureCache::sharedTextureCache()->addImage(utils::string::pathToString(path).c_str(), false);
 			if (!texture) return CCSprite::create();
 
 			return CCSprite::createWithTexture(texture);

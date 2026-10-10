@@ -60,4 +60,36 @@ namespace playersprites::UIUtils {
 		return { menu, toggler };
 	}
 
+	struct VisualToggler {
+		CCMenu* container;
+		CCMenuItemToggler* toggler;
+	};
+
+	inline VisualToggler visToggler(bool initialState, CCObject* target, SEL_MenuHandler selector, float togglerScale = 0.7f, const char* id = nullptr, const char* offSpr = "GJ_checkOff_001.png", const char* onSpr = "GJ_checkOn_001.png") {
+		auto menu = CCMenu::create();
+		menu->setLayout(
+			RowLayout::create()
+				->setAxisAlignment(AxisAlignment::Start)
+				->setCrossAxisAlignment(AxisAlignment::Center)
+				->setAutoScale(false)
+				->setGrowCrossAxis(true)
+				->setAxisReverse(true)
+				->setAutoGrowAxis(true)
+		);
+
+		auto offSprite = CCSprite::createWithSpriteFrameName(offSpr);
+		auto onSprite = CCSprite::createWithSpriteFrameName(onSpr);
+
+		auto toggler = CCMenuItemToggler::create(offSprite, onSprite, target, selector);
+		toggler->setScale(togglerScale);
+		menu->addChild(toggler);
+		menu->updateLayout();
+
+		toggler->toggle(initialState);
+
+		if (id) menu->setID(id);
+
+		return { menu, toggler };
+	}
+
 }

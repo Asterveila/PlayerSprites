@@ -113,13 +113,28 @@ class $modify(PSPlayerObject, PlayerObject) {
 		this->setVanillaVisible(showVanilla, pack->globalAttributes);
 
 		if (m_ghostTrail) {
-			if (Mod::get()->getSettingValue<std::string>("ghost-trail-behavior") == "replace") {
+			auto behavior = Mod::get()->getSettingValue<std::string>("ghost-trail-behavior");
+
+			if (behavior == "replace") {
 				m_ghostTrail->m_iconSprite = sprite->getSprite();
 				m_ghostTrail->m_color = { 255, 255, 255 };
-			} else if (Mod::get()->getSettingValue<std::string>("ghost-trail-behavior") == "disable") {
+
+				if (sprite->isPlaying()) {
+					auto* inner = sprite->getSprite();
+					auto size = sprite->getContentSize();
+					CCPoint offset = { inner->getPositionX() - size.width / 2.f, inner->getPositionY() - size.height / 2.f };
+
+					if (m_isRobot && m_isUpsideDown) offset.y = -offset.y;
+					if (m_isRobot) {
+						float trailScale = inner->getScale();
+						if (trailScale > 0.f) m_ghostTrail->m_position = offset / trailScale;
+					} else {
+						m_ghostTrail->m_position += offset;
+					}
+				}
+			} else if (behavior == "disable") {
 				m_ghostTrail->setVisible(false);
 			}
-			
 		}
 	}
 
