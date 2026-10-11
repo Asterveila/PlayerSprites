@@ -15,16 +15,24 @@ class $modify(PSGarageLayer, GJGarageLayer) {
         if (!GJGarageLayer::init()) return false;
 
 		// @geode-ignore(unknown-resource)
-		auto editorSprite = CircleButtonSprite::create(CCSprite::createWithSpriteFrameName("geode.loader/grid-view.png"), CircleBaseColor::Blue, CircleBaseSize::SmallAlt);
+		//auto editorSprite = CircleButtonSprite::create(CCSprite::createWithSpriteFrameName("geode.loader/grid-view.png"), CircleBaseColor::Blue, CircleBaseSize::SmallAlt);
+        
+        auto openMenuBase = CCSprite::createWithSpriteFrameName("bigSquareBtnBlue.png"_spr);
+        auto openMenuSpr = CCSprite::createWithSpriteFrameName("menuBtnSprite.png"_spr);
+
+        openMenuBase->addChild(openMenuSpr, 2);
+        openMenuSpr->setPosition({openMenuBase->getContentWidth() / 2.f - 0.5f, openMenuBase->getContentHeight() / 2.f + 1.25f});
+        openMenuSpr->setScale(1.1f);
+
         auto editorButton = CCMenuItemSpriteExtra::create(
-            editorSprite,
+            openMenuBase,
             this,
             menu_selector(PSGarageLayer::onOpenPackList)
         );
 
         auto menu = this->getChildByID("shards-menu");
         if (menu) {
-            editorButton->setID("icon-workbench"_spr);
+            editorButton->setID("sprite-packs"_spr);
             editorButton->setPosition({-180.0f, 120.0f});
             menu->addChild(editorButton);
             menu->updateLayout();
