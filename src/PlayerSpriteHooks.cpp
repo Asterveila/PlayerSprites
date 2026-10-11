@@ -46,6 +46,10 @@ class $modify(PSPlayerObject, PlayerObject) {
 		PlayerSprite* modSprite = nullptr;
 	};
 
+	void fuckkkkk() {
+		log::debug("upsideDown: {} | sideways: {}", m_isUpsideDown, m_isSideways);
+	}
+
 	bool init(int player, int ship, GJBaseGameLayer* gameLayer, cocos2d::CCLayer* layer, bool playLayer) {
 		if (!PlayerObject::init(player, ship, gameLayer, layer, playLayer)) return false;
 
@@ -104,7 +108,10 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		if (sprite->currentLockRotation()) {
 			this->setRotation(0.f);
-			sprite->setFlipped(m_isUpsideDown && !m_isRobot);
+
+			// im just gonna assume the spider behaves  the same. for now.
+			bool flipped = !(m_isRobot || m_isSpider) && (m_isUpsideDown != m_isSideways);
+			sprite->setFlipped(flipped);
 		} else {
 			sprite->setFlipped(false);
 		}
@@ -118,6 +125,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 			if (behavior == "replace") {
 				m_ghostTrail->m_iconSprite = sprite->getSprite();
 				m_ghostTrail->m_color = { 255, 255, 255 };
+				// m_ghostTrail->m_iconSprite->setFlipX(m_mainLayer->getScaleX() < 0);
 
 				if (sprite->isPlaying()) {
 					auto* inner = sprite->getSprite();
