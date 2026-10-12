@@ -6,6 +6,7 @@
 
 #include <Geode/modify/PlayerObject.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
+#include <Geode/modify/GhostTrailEffect.hpp>
 
 using namespace geode::prelude;
 using namespace playersprites;
@@ -44,11 +45,10 @@ namespace {
 class $modify(PSPlayerObject, PlayerObject) {
 	struct Fields {
 		PlayerSprite* modSprite = nullptr;
+		
+		geode::Ref<CCSprite> ghostGuide;
+		float ghostRotation = 0.f;
 	};
-
-	void fuckkkkk() {
-		log::debug("upsideDown: {} | sideways: {}", m_isUpsideDown, m_isSideways);
-	}
 
 	bool init(int player, int ship, GJBaseGameLayer* gameLayer, cocos2d::CCLayer* layer, bool playLayer) {
 		if (!PlayerObject::init(player, ship, gameLayer, layer, playLayer)) return false;
@@ -64,6 +64,14 @@ class $modify(PSPlayerObject, PlayerObject) {
 	void update(float dt) {
 		PlayerObject::update(dt);
 		this->updateModSprite();
+	}
+
+	float getghostRotation() {
+		return m_fields->ghostRotation;
+	}
+
+	CCSprite* getGhostGuide() {
+		return m_fields->ghostGuide.data();
 	}
 
 	void updateModSprite() {
@@ -123,31 +131,42 @@ class $modify(PSPlayerObject, PlayerObject) {
 			auto behavior = Mod::get()->getSettingValue<std::string>("ghost-trail-behavior");
 
 			if (behavior == "replace") {
-				m_ghostTrail->m_iconSprite = sprite->getSprite();
-				m_ghostTrail->m_color = { 255, 255, 255 };
-				// m_ghostTrail->m_iconSprite->setFlipX(m_mainLayer->getScaleX() < 0);
+				auto* pSprite = sprite->getSprite();
 
-				if (sprite->isPlaying()) {
-					auto* inner = sprite->getSprite();
-					auto size = sprite->getContentSize();
-					CCPoint offset = { inner->getPositionX() - size.width / 2.f, inner->getPositionY() - size.height / 2.f };
+				if (!flds->ghostGuide) flds->ghostGuide = CCSprite::create();
+				auto* guide = flds->ghostGuide.data();
 
-					if (m_isRobot && m_isUpsideDown) offset.y = -offset.y;
-					if (m_isRobot) {
-						float trailScale = inner->getScale();
-						if (trailScale > 0.f) m_ghostTrail->m_position = offset / trailScale;
-					} else {
-						m_ghostTrail->m_position += offset;
+				bool facingLeft = this->getScaleX() < 0.f;
+				bool flipX = facingLeft != (m_mainLayer->getScaleX() < 0.f);
+				bool flipY = pSprite->isFlipY() != (m_mainLayer->getScaleY() < 0.f);
+				float spriteScale = std::abs(pSprite->getScaleX());
+
+				if (auto* frame = pSprite->displayFrame()) {
+					if (sprite->isPlaying() && spriteScale > 0.f) {
+						auto size = sprite->getContentSize();
+						float rawX = pSprite->getPositionX() - size.width / 2.f;
+						float rawY = pSprite->getPositionY() - size.height / 2.f;
+						if (pSprite->isFlipY()) rawY = -rawY;
+						frame->setOffset({ rawX / spriteScale, rawY / spriteScale });
 					}
+					guide->setDisplayFrame(frame);
 				}
+
+				guide->setScaleX(spriteScale * (flipX ? -1.f : 1.f));
+				guide->setScaleY(std::abs(pSprite->getScaleY()) * (flipY ? -1.f : 1.f));
+
+				m_ghostTrail->m_iconSprite = guide;
+				m_ghostTrail->m_color = { 255, 255, 255 };
+				m_ghostTrail->m_position = CCPoint(0, 0);
+
+				float mainRotation = m_mainLayer->getRotation();
+				flds->ghostRotation = facingLeft ? -mainRotation : mainRotation;
 			} else if (behavior == "disable") {
 				m_ghostTrail->setVisible(false);
 			}
 		}
 	}
 
-	// TODO: this needs a LOOOOOOOOT of tweaking
-	// ts still hiding and showing left and right when it shouldn't .
 	void setVanillaVisible(bool visible, GlobalAttributes const& attrs) {
 		bool complexIcon = m_isRobot || m_isSpider;
 
@@ -282,5 +301,23 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 				sprite->stopAnim();
 			}
 		}
+	}
+};
+
+class $modify(PSGhostTrailEffect, GhostTrailEffect) {
+	void trailSnapshot(float dt) {
+		auto* player = m_playerObject ? static_cast<PSPlayerObject*>(m_playerObject) : nullptr;
+		auto* sprite = player ? player->getModSprite() : nullptr;
+		float extraRotation = player ? player->getghostRotation() : 0.f;
+
+		if (!sprite || !sprite->isPlaying() || extraRotation == 0.f || m_iconSprite != player->getGhostGuide()) {
+			return GhostTrailEffect::trailSnapshot(dt);
+		}
+
+		float ogRot = player->getRotation();
+
+		player->setRotation(ogRot + extraRotation);
+		GhostTrailEffect::trailSnapshot(dt);
+		player->setRotation(ogRot);
 	}
 };
