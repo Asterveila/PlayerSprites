@@ -36,6 +36,10 @@
 			]
 		}
 	},
+	"links": {
+		"source": "https://github.com/Asterveila/PlayerSprites",
+		"community": "https://discord.gg/dceY3uvGzD"
+	},
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3"
 	}
