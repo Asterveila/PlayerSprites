@@ -98,6 +98,55 @@ namespace playersprites {
 			return val.asBool().unwrapOr(defaultValue);
 		}
 
+		using RawEvents = std::unordered_map<std::string, std::unordered_map<std::string, matjson::Value>>;
+
+		// i made the mimic
+		Result<matjson::Value, std::string> resolveMimic(RawEvents const& raw, std::string const& gamemode, std::string const& eventName, std::vector<std::string>& chain) {
+			auto const ownKey = fmt::format("{}/{}", gamemode, eventName);
+			auto const& eventJson = raw.at(gamemode).at(eventName);
+
+			if (!eventJson.isObject()) {
+				return Err(fmt::format("event '{}': expected an object", ownKey));
+			}
+
+			auto const& mimicVal = eventJson["mimic"];
+			if (mimicVal.isNull()) return Ok(eventJson);
+
+			if (std::find(chain.begin(), chain.end(), ownKey) != chain.end()) {
+				return Err(fmt::format("event '{}': 'mimic' chain loops back on itself", ownKey));
+			}
+
+			auto mimicRes = mimicVal.asString();
+			if (mimicRes.isErr()) {
+				return Err(fmt::format("event '{}': 'mimic' must be a string like \"Cube/EventId\"", ownKey));
+			}
+			auto target = mimicRes.unwrap();
+
+			auto slash = target.find('/');
+			if (slash == std::string::npos || slash == 0 || slash + 1 >= target.size()) {
+				return Err(fmt::format("event '{}': 'mimic' must look like \"Gamemode/EventId\", got '{}'", ownKey, target));
+			}
+			auto srcGamemode = target.substr(0, slash);
+			auto srcEvent = target.substr(slash + 1);
+
+			auto gmIt = raw.find(srcGamemode);
+			if (gmIt == raw.end() || gmIt->second.find(srcEvent) == gmIt->second.end()) {
+				return Err(fmt::format("event '{}': 'mimic' target '{}' doesn't exist in this pack", ownKey, target));
+			}
+
+			chain.push_back(ownKey);
+			auto baseRes = resolveMimic(raw, srcGamemode, srcEvent, chain);
+			chain.pop_back();
+			if (baseRes.isErr()) return Err(baseRes.unwrapErr());
+
+			auto merged = baseRes.unwrap();
+			for (auto const& [key, value] : eventJson) {
+				if (std::string(key) == "mimic") continue;
+				merged[std::string(key)] = value;
+			}
+			return Ok(std::move(merged));
+		}
+
 	}
 
 	float AnimEvent::rollFrameTime() const {
@@ -484,6 +533,7 @@ namespace playersprites {
 
 		// "events" is an array of objects, each keyed by gamemode name.
 		// if the same gamemode/event pair shows up twice across entries, the later one takes prio
+		RawEvents rawEvents;
 		for (auto const& block : eventsVal) {
 			if (!block.isObject()) {
 				return Err(std::string("spr-pack.json: each entry in 'events' must be an object keyed by gamemode"));
@@ -496,31 +546,46 @@ namespace playersprites {
 				if (!gamemodeJson.isObject()) {
 					return Err(fmt::format("gamemode '{}': expected an object of events", gamemodeName));
 				}
-				auto& gmEvents = pack.gamemodes[gamemodeName];
+				pack.gamemodes[gamemodeName];
+				auto& gmRaw = rawEvents[gamemodeName];
 				for (auto const& [eventName, eventJson] : gamemodeJson) {
-					auto evRes = AnimEvent::parse(fmt::format("{}/{}", gamemodeName, eventName), eventJson);
-					if (evRes.isErr()) return Err(evRes.unwrapErr());
-					auto ev = evRes.unwrap();
-					ev.id = eventName;
-
-					std::vector<std::string> effectiveTriggers =
-						ev.triggerOn.empty() ? std::vector<std::string>{ ev.id } : ev.triggerOn;
-					if (ev.fadeOutTime.has_value()) {
-						bool isStaticDeathDisappear = false;
-						for (auto const& t : effectiveTriggers) {
-							if (t == "Mod:StaticDeathDisappear") { isStaticDeathDisappear = true; break; }
-						}
-						if (!isStaticDeathDisappear) {
-							return Err(fmt::format(
-								"event '{}/{}': 'fadeOutTime' is only valid on an event that triggers on "
-								"Mod:StaticDeathDisappear",
-								gamemodeName, eventName
-							));
-						}
-					}
-
-					gmEvents.events[eventName] = std::move(ev);
+					gmRaw[eventName] = eventJson;
 				}
+			}
+		}
+
+		// it was difficult to parse the pieces together
+		for (auto const& [gamemodeName, gmRaw] : rawEvents) {
+			auto& gmEvents = pack.gamemodes[gamemodeName];
+			for (auto const& entry : gmRaw) {
+				auto const& eventName = entry.first;
+
+				std::vector<std::string> chain;
+				auto resolvedRes = resolveMimic(rawEvents, gamemodeName, eventName, chain);
+				if (resolvedRes.isErr()) return Err(resolvedRes.unwrapErr());
+
+				auto evRes = AnimEvent::parse(fmt::format("{}/{}", gamemodeName, eventName), resolvedRes.unwrap());
+				if (evRes.isErr()) return Err(evRes.unwrapErr());
+				auto ev = evRes.unwrap();
+				ev.id = eventName;
+
+				std::vector<std::string> effectiveTriggers =
+					ev.triggerOn.empty() ? std::vector<std::string>{ ev.id } : ev.triggerOn;
+				if (ev.fadeOutTime.has_value()) {
+					bool isStaticDeathDisappear = false;
+					for (auto const& t : effectiveTriggers) {
+						if (t == "Mod:StaticDeathDisappear") { isStaticDeathDisappear = true; break; }
+					}
+					if (!isStaticDeathDisappear) {
+						return Err(fmt::format(
+							"event '{}/{}': 'fadeOutTime' is only valid on an event that triggers on "
+							"Mod:StaticDeathDisappear",
+							gamemodeName, eventName
+						));
+					}
+				}
+
+				gmEvents.events[eventName] = std::move(ev);
 			}
 		}
 

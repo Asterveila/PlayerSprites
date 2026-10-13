@@ -68,9 +68,14 @@ namespace playersprites {
 		return std::find(m_packIds.begin(), m_packIds.end(), id) != m_packIds.end();
 	}
 
-	bool Registry::addPack(std::string const& id) {
+	bool Registry::addPack(std::string const& id, bool top) {
 		if (contains(id)) return false;
-		m_packIds.push_back(id);
+
+		if (top) {
+			m_packIds.insert(m_packIds.begin(), id);
+		} else {
+			m_packIds.push_back(id);
+		}
 		return true;
 	}
 

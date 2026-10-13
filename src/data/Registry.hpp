@@ -20,7 +20,7 @@ namespace playersprites {
 		std::vector<std::string> const& packIds() const { return m_packIds; }
 		bool contains(std::string const& id) const;
 
-		bool addPack(std::string const& id);
+		bool addPack(std::string const& id, bool top = false);
 		bool removePack(std::string const& id);
 	};
 

@@ -249,7 +249,12 @@ namespace playersprites {
 		}
 	}
 
-	void PlayerSprite::onHoldFinished(float) {
+		void PlayerSprite::onHoldFinished(float) {
+		if (m_state == State::Playing) {
+			m_sprite->stopAllActions();
+			m_sprite->setVisible(false);
+		}
+
 		if (!tryConsumePending()) {
 			m_state = State::Idle;
 		}

@@ -19,6 +19,7 @@ namespace playersprites {
 		if (player->m_isSwing) return "Swing";
 		if (player->m_isDart) return "Wave";
 		if (player->m_isBird) return "UFO";
+		if (player->m_isShip && player->m_isPlatformer) return "Jetpack";
 		if (player->m_isShip) return "Ship";
 		if (player->m_isBall) return "Ball";
 		return "Cube";

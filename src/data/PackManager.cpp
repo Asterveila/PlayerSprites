@@ -216,7 +216,7 @@ namespace playersprites::transfer {
 			}
 		}
 
-		registry.addPack(id);
+		registry.addPack(id, true);
 		if (auto res = registry.save(); res.isErr()) {
 			registry.removePack(id);
 			removeFolder(destRoot);
