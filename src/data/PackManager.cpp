@@ -293,7 +293,11 @@ namespace playersprites::transfer {
 
 	Result<size_t, std::string> installBuiltinPacks() {
 		static std::vector<std::string> const builtinPacks = {
-			"cute-lil-bow.zip"
+			// "cute-lil-bow.zip",
+			"zero-x3.zip",
+			"zero-x4.zip",
+			"kris-ch5.zip",
+			"sonicmania.zip"
 		};
 
 		auto const resourcesDir = Mod::get()->getResourcesDir();

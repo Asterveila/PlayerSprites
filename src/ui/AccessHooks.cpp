@@ -41,27 +41,27 @@ class $modify(PSGarageLayer, GJGarageLayer) {
         return true;
     }
 
-        void onOpenPackList(CCObject* sender) {
-        if (Mod::get()->getSavedValue<bool>("builtin-packs-installed", false)) {
-            SpritePackListPopup::create()->show();
-            return;
-        }
+    void onOpenPackList(CCObject* sender) {
 
-        MDPopup::create(
-            "Install Built-in Packs",
-            "It looks like this is your first time using PlayerSprites, welcome! \n\nThis mod is completely driven by **'Sprite Packs'**, which you have none of right now. \n\nDon't worry, though! The mod comes with a few of them built-in so you can immediately get to experience what the mod can do! \nClick on the button below to install them.",
-            "Install", nullptr,
-            [](bool) {
-                auto res = transfer::installBuiltinPacks();
-                if (res.isErr()) {
-                    FLAlertLayer::create("Install failed...", res.unwrapErr(), "OK")->show();
-                } else {
-                    Mod::get()->setSavedValue<bool>("builtin-packs-installed", true);
-                    Notification::create(fmt::format("Installed {} packs!", res.unwrap()), NotificationIcon::Success)->show();
+        if (!Mod::get()->setSavedValue("installed-builtin", true)) {
+            MDPopup::create(
+                "Install Built-in Packs",
+                "Hey there! It looks like this is your first time using PlayerSprites, welcome! \n\nThis mod is completely driven by **'Sprite Packs'**, which you have none of right now. \n\nDon't worry, though! The mod comes with a few of them built-in so you can immediately get to experience what the mod can do! \nClick on the button below to install them! \nOnce they're installed, we'll take you directly to the mod's popup where you can properly configure everything about all sprite packs you have downloaded!",
+                "Install", nullptr,
+                [](bool) {
+                    auto res = transfer::installBuiltinPacks();
+                    if (res.isErr()) {
+                        FLAlertLayer::create("Install failed...", res.unwrapErr(), "OK")->show();
+                    } else {
+                        Notification::create(fmt::format("Installed {} packs!", res.unwrap()), NotificationIcon::Success)->show();
+                    }
+                    SpritePackListPopup::create()->show();
                 }
-                SpritePackListPopup::create()->show();
-            }
-        )->show();
+            )->show();
+        } else {
+            SpritePackListPopup::create()->show();
+        }
+        
     }
 
 };

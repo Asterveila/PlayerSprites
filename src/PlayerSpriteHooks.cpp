@@ -183,6 +183,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 			m_spiderBatchNode->setVisible(visible);
 
 			if (m_isRobot && m_robotFire && !visible && !attrs.keepRobotFire) m_robotFire->setVisible(false);
+			if (m_isRobot && m_robotBurstParticles) m_robotBurstParticles->setVisible(visible || attrs.keepRobotParticles);
 		} else {
 			m_iconSprite->setVisible(visible);
 			m_iconSpriteSecondary->setVisible(visible);
@@ -239,7 +240,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 		audio::resetSequences();
 		m_fields->levelComplete = false;
 		m_fields->hasCompleteAnim = false;
-		
+
 		if (auto* sprite = m_fields->modSprite) sprite->resetState();
 	}
 
@@ -300,7 +301,7 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 		else if (playerID == 2) targets.push_back(m_player2);
 		else {
 			if (m_player1) targets.push_back(m_player1);
-			if (m_player2) targets.push_back(m_player2);
+			if (m_player2 && m_gameState.m_isDualMode) targets.push_back(m_player2);
 		}
 		if (targets.empty()) return;
 

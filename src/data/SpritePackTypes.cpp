@@ -323,6 +323,7 @@ namespace playersprites {
 
 		pixelMode = optionalBool(json, "pixelMode", pixelMode);
 		keepRobotFire = optionalBool(json, "keepRobotFire", keepRobotFire);
+		keepRobotParticles = optionalBool(json, "keepRobotParticles", keepRobotParticles);
 		keepSwingFires = optionalBool(json, "keepSwingFires", keepSwingFires);
 		keepDashFire = optionalBool(json, "keepDashFire", keepDashFire);
 		noDeathEffects = optionalBool(json, "noDeathEffects", noDeathEffects);

@@ -246,7 +246,7 @@ namespace playersprites {
 		auto zipPath = std::move(res).unwrap();
 		FLAlertLayer::create(
 			"Export Successful!", 
-			fmt::format("Successfully exported pack to {}! \n\nIf this isn't your preferred folder for exports, please change it in the mod's config.", geode::utils::string::pathToString(zipPath.filename())),
+			fmt::format("Successfully exported pack to <cy>{}</c>! \n\nIf this isn't your preferred folder for exports, please change it in the mod's config.", geode::utils::string::pathToString(zipPath)),
 			"OK"
 		)->show();
 

@@ -1,5 +1,5 @@
 # PlayerSprites
-The spiritual successor to Sonic Robot Mod.
+<cb>The spiritual successor to Sonic Robot Mod.</c>
 
 PlayerSprites is a mod that allows you to replace any gamemode in GD with a **working Sprite Animation** of any character from any game you want! *(Granted, if they have sprites, of course.)*
 Sprite animations work globally, on any level, any gamemode! Entirely driven through the use of **Sprite Packs**, anyone can import any sprite animation into the game to play on any gamemode!

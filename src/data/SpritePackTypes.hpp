@@ -95,6 +95,7 @@ namespace playersprites {
 
 		// self explanatory. controls for robot/swing fires as well as dash fire anim.
 		bool keepRobotFire = false;
+		bool keepRobotParticles = false;
 		bool keepSwingFires = false;
 		bool keepDashFire = false;
 
