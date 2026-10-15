@@ -23,6 +23,8 @@ If it's your first time using the mod, it'll automatically install the built-in 
 PlayerSprites allows you, the user, to create and load **"Sprite Packs"**, the mod's own "Texture Pack" format.
 Sprite packs contain a variety of individual sprites as images, as well as one json file that defines when each set of sprites gets played out like an animation in the game!
 Wanna have an animation for walking, one for jumping, another one for falling and one for dashing? Can do!
+Oh, and if you wanna make a pack that doesn't *replace* vanilla icons, but rather **adds an overlay** to them, that's possible, too! There's a sprite pack example for this included in the mod.
+Oh, and yup. You can make animated icons now. ~~Technically.~~ You're welcome.
 
 Not only that, but you can load multiple Sprite Packs at a time, enable some of them, disable others, keep one pack active for one gamemode and keep others enabled on other gamemodes, all of that and more is completely possible!
 

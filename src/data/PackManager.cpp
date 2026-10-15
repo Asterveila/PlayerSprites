@@ -1,5 +1,6 @@
 #include "PackManager.hpp"
 #include "Registry.hpp"
+#include "PackSettings.hpp"
 #include "../core/SoundPlayer.hpp"
 #include <matjson.hpp>
 #include <Geode/Geode.hpp>
@@ -223,6 +224,8 @@ namespace playersprites::transfer {
 			return Err(fmt::format("couldn't update registry.json: {}", res.unwrapErr()));
 		}
 
+		settings::setPackEnabled(id, false);
+
 		PackManager::get().reload();
 
 		for (auto const& [errorId, loadError] : PackManager::get().getLoadErrors()) {
@@ -293,10 +296,12 @@ namespace playersprites::transfer {
 
 	Result<size_t, std::string> installBuiltinPacks() {
 		static std::vector<std::string> const builtinPacks = {
-			// "cute-lil-bow.zip",
+			"cute-lil-bow.zip",
 			"zero-x3.zip",
 			"zero-x4.zip",
 			"kris-ch5.zip",
+			"sonic-3.zip",
+			"sonic-1.zip",
 			"sonicmania.zip"
 		};
 

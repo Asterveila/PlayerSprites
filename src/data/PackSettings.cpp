@@ -28,6 +28,7 @@ namespace playersprites::settings {
 		return geode::Mod::get()->getSavedValue<bool>(packKey(packId), true);
 	}
 	void setPackEnabled(std::string const& packId, bool enabled) {
+		isPackEnabled(packId);
 		geode::Mod::get()->setSavedValue<bool>(packKey(packId), enabled);
 	}
 
