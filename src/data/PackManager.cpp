@@ -291,5 +291,35 @@ namespace playersprites::transfer {
 		return Ok(outPath);
 	}
 
+	Result<size_t, std::string> installBuiltinPacks() {
+		static std::vector<std::string> const builtinPacks = {
+			"cute-lil-bow.zip"
+		};
+
+		auto const resourcesDir = Mod::get()->getResourcesDir();
+
+		size_t installed = 0;
+		std::string failures;
+		for (auto const& name : builtinPacks) {
+			auto zipPath = resourcesDir / name;
+
+			if (!fs::exists(zipPath)) {
+				failures += fmt::format("\n- {}: file is missing", name);
+				continue;
+			}
+
+			auto res = importPack(zipPath);
+			if (res.isOk()) {
+				installed++;
+			} else {
+				failures += fmt::format("\n- {}: {}", name, res.unwrapErr());
+			}
+		}
+
+		if (installed == 0) return Err(fmt::format("none of the built-in packs could be installed:{}", failures));
+		if (!failures.empty()) log::warn("some built-in packs failed to install:{}", failures);
+		return Ok(installed);
+	}
+
 }
 

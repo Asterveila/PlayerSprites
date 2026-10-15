@@ -41,6 +41,27 @@ class $modify(PSGarageLayer, GJGarageLayer) {
         return true;
     }
 
-    void onOpenPackList(CCObject* sender) { SpritePackListPopup::create()->show(); }
+        void onOpenPackList(CCObject* sender) {
+        if (Mod::get()->getSavedValue<bool>("builtin-packs-installed", false)) {
+            SpritePackListPopup::create()->show();
+            return;
+        }
+
+        MDPopup::create(
+            "Install Built-in Packs",
+            "It looks like this is your first time using PlayerSprites, welcome! \n\nThis mod is completely driven by **'Sprite Packs'**, which you have none of right now. \n\nDon't worry, though! The mod comes with a few of them built-in so you can immediately get to experience what the mod can do! \nClick on the button below to install them.",
+            "Install", nullptr,
+            [](bool) {
+                auto res = transfer::installBuiltinPacks();
+                if (res.isErr()) {
+                    FLAlertLayer::create("Install failed...", res.unwrapErr(), "OK")->show();
+                } else {
+                    Mod::get()->setSavedValue<bool>("builtin-packs-installed", true);
+                    Notification::create(fmt::format("Installed {} packs!", res.unwrap()), NotificationIcon::Success)->show();
+                }
+                SpritePackListPopup::create()->show();
+            }
+        )->show();
+    }
 
 };

@@ -34,7 +34,10 @@
 			"PS_UISheet": [
 				"resources/ui/*.png"
 			]
-		}
+		},
+		"files": [
+			"resources/packs/*.zip"
+		]
 	},
 	"links": {
 		"source": "https://github.com/Asterveila/PlayerSprites",
