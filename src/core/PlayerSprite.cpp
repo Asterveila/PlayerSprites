@@ -318,9 +318,13 @@ namespace playersprites {
 		m_sprite->setPositionY(y);
 	}
 
-	// needs tweaking, ts is barely noticeable :sob:
 	void PlayerSprite::playRetroDeathAction() {
-		auto* move = CCEaseBackIn::create(CCMoveBy::create(0.75f, { 0.f, -300.f }));
+
+		auto move = CCSequence::create(
+			CCEaseOut::create(CCMoveBy::create(0.2f, { 0.f, 65.f }), 2.f),
+			CCEaseIn::create(CCMoveBy::create(0.55f, { 0.f, -200.f }), 2.f),
+			nullptr
+		);
 		this->runAction(move);
 
 		auto* fadeAway = CCSequence::create(
