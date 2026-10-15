@@ -48,6 +48,9 @@ class $modify(PSPlayerObject, PlayerObject) {
 		
 		geode::Ref<CCSprite> ghostGuide;
 		float ghostRotation = 0.f;
+
+		bool levelComplete = false;
+		bool hasCompleteAnim = false;
 	};
 
 	bool init(int player, int ship, GJBaseGameLayer* gameLayer, cocos2d::CCLayer* layer, bool playLayer) {
@@ -78,6 +81,11 @@ class $modify(PSPlayerObject, PlayerObject) {
 		auto flds = m_fields.self();
 		auto* sprite = flds->modSprite;
 		if (!sprite) return;
+
+		if (flds->levelComplete) {
+			sprite->setVisible(flds->hasCompleteAnim);
+			return;
+		}
 
 		auto gamemode = currentGamemodeName(this);
 		auto* pack = activePackFor(m_isPlatformer, gamemode);
@@ -227,8 +235,37 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 	void resetObject() {
 		PlayerObject::resetObject();
+
 		audio::resetSequences();
+		m_fields->levelComplete = false;
+		m_fields->hasCompleteAnim = false;
+		
 		if (auto* sprite = m_fields->modSprite) sprite->resetState();
+	}
+
+	void playCompleteEffect(bool noEffects, bool instant) {
+		PlayerObject::playCompleteEffect(noEffects, instant);
+
+		auto* sprite = m_fields->modSprite;
+		if (!sprite) return;
+
+		auto gamemode = currentGamemodeName(this);
+		auto* pack = activePackFor(m_isPlatformer, gamemode);
+		if (!pack) return;
+
+		m_fields->levelComplete = true;
+		audio::playForEvent(m_isPlatformer, gamemode, "Mod:LevelComplete");
+
+		if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:LevelComplete")) {
+			m_fields->hasCompleteAnim = true;
+			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
+			sprite->setVisible(true);
+			this->setVanillaVisible(false, pack->globalAttributes);
+		} else {
+			m_fields->hasCompleteAnim = false;
+			sprite->stopAnim();
+			sprite->setVisible(false);
+		}
 	}
 };
 
