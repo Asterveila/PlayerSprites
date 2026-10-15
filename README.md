@@ -11,13 +11,13 @@ To get started, head over to the **Icon Kit Menu**, look on the left side for a 
 If it's your first time using the mod, it'll automatically install the built-in packs to your game, so you can immediately start playing and using PlayerSprites without the need of making your own pack first!
 
 ## Mod Features
-- Event-based animations: Different sprite animations can play on any in-game event, such as Running, Jumping, Dashing, hitting an Orb, using a Pad, just about anything you can think of!
-- Replace any gamemode: The mod allows you to replace ANY gamemode in the game with your own desired sprite animations! You, as the user, are also able to individually toggle each gamemode for each pack on/off to your liking!
-- Both Level Types support: Packs can be enabled/disabled per Level Type, so you can keep some on for Classic levels while having other packs on for Platformer levels!
-- Robust Pack customization: If you're creating a Sprite Pack, you're able to customize pretty much every aspect of it! Add as many animations as you want, for specific gamemodes, set each animation's frame count, duration, if it should loop, their scale, etc!
-- Per-Pack control: As the end user, you're able to individually toggle full packs on/off, or just toggle their individual animations per-gamemode with ease! Don't like the Cube's orb animation in a pack but don't wanna disable the entire gamemode? Yup, can do too! Everything is controllable via the mod's own custom menu!
-- SFX Packs: Yeah, the mod is called Player**Sprites**, but Packs can also add Sound Effects to go along with them! Of course, these are also fully controllable via the mod's own menu.
-- Easy Pack Importing: Via the mod's custom menu, you're able to import any sprite packs easily simply by clicking a button! Sprite packs are distributed as *.zip* files. As a pack creator, you're also able to easily Export your created packs with a single click!
+- **Event-based animations**: Different sprite animations can play on any in-game event, such as Running, Jumping, Dashing, hitting an Orb, using a Pad, just about anything you can think of!
+- **Replace any gamemode**: The mod allows you to replace ANY gamemode in the game with your own desired sprite animations! You, as the user, are also able to individually toggle each gamemode for each pack on/off to your liking!
+- **Both Level Types support**: Packs can be enabled/disabled per Level Type, so you can keep some on for Classic levels while having other packs on for Platformer levels!
+- **Robust Pack customization**: If you're creating a Sprite Pack, you're able to customize pretty much every aspect of it! Add as many animations as you want, for specific gamemodes, set each animation's frame count, duration, if it should loop, their scale, etc!
+- **Per-Pack control**: As the end user, you're able to individually toggle full packs on/off, or just toggle their individual animations per-gamemode with ease! Don't like the Cube's orb animation in a pack but don't wanna disable the entire gamemode? Yup, can do too! Everything is controllable via the mod's own custom menu!
+- **SFX Packs**: Yeah, the mod is called Player**Sprites**, but Packs can also add Sound Effects to go along with them! Of course, these are also fully controllable via the mod's own menu.
+- **Easy Pack Importing**: Via the mod's custom menu, you're able to import any sprite packs easily simply by clicking a button! Sprite packs are distributed as *.zip* files. As a pack creator, you're also able to easily Export your created packs with a single click!
 
 ## How?
 PlayerSprites allows you, the user, to create and load **"Sprite Packs"**, the mod's own "Texture Pack" format.
@@ -52,4 +52,4 @@ In it, there'll be a dedicated forum to Sharing Sprite Packs, so you can share y
 ### Credits
 - Toby Fox, Temmie Chang & DELTARUNE Team: Kris' chapter 5 platformer sprites & SFX.
 - SEGA: Sonic 1, 3 and Mania sprites & SFX.
-- CapCom: Zero (Megaman X3 & X4) sprites & SFX.
+- CapCom: Zero (Megaman X3 & X4-X6) sprites & SFX.

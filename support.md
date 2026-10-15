@@ -1,2 +1,9 @@
-This file can include information on how users can support you (Ko-Fi or Patreon for example).
-You can also delete this file if you don't need it.
+If you enjoy this mod and would like to show some support:
+
+If you wanna support me monetarily, [Buy Me a Coffee!](https://ko-fi.com/asterveila)
+
+If you wanna check out my other stuff, my other socials are:
+- [Twitter](https://x.com/Asterveila)
+- [Youtube](https://www.youtube.com/@Asterveila)
+
+Thank you for using PlayerSprites!
