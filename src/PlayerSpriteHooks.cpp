@@ -55,6 +55,13 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		std::unordered_map<std::string, size_t> tauntNext;
 		std::unordered_map<std::string, size_t> tauntLast;
+
+		struct TauntTimer {
+			std::chrono::steady_clock::time_point at;
+			float resetAfter = 0.f;
+		};
+		std::unordered_map<std::string, TauntTimer> tauntTimer;
+		bool tauntInterruptByTaunts = true;
 	};
 
 	bool init(int player, int ship, GJBaseGameLayer* gameLayer, cocos2d::CCLayer* layer, bool playLayer) {
@@ -160,8 +167,8 @@ class $modify(PSPlayerObject, PlayerObject) {
 						float rawY = pSprite->getPositionY() - size.height / 2.f;
 						if (pSprite->isFlipY()) rawY = -rawY;
 						frame->setOffset({ rawX / spriteScale, rawY / spriteScale });
+						guide->setDisplayFrame(frame);
 					}
-					guide->setDisplayFrame(frame);
 				}
 
 				guide->setScaleX(spriteScale * (flipX ? -1.f : 1.f));
@@ -241,7 +248,11 @@ class $modify(PSPlayerObject, PlayerObject) {
 	bool runTaunt(std::unordered_set<std::string>& playedSounds) {
 		auto* sprite = m_fields->modSprite;
 		if (!sprite || m_isDead || m_fields->levelComplete) return false;
-		if (sprite->isBlocking()) return false;
+		if (sprite->isPlaying() && sprite->currentEventName() == "Mod:Taunt") {
+			if (!m_fields->tauntInterruptByTaunts) return false;
+		} else if (sprite->isBlocking()) {
+			return false;
+		}
 
 		auto gamemode = currentGamemodeName(this);
 		auto* pack = activePackFor(m_isPlatformer, gamemode);
@@ -256,6 +267,13 @@ class $modify(PSPlayerObject, PlayerObject) {
 		size_t index = 0;
 		if (gm.tauntsOrdered) {
 			auto& next = m_fields->tauntNext[key];
+
+			auto timerIt = m_fields->tauntTimer.find(key);
+			if (timerIt != m_fields->tauntTimer.end() && timerIt->second.resetAfter > 0.f) {
+				float secondsSince = std::chrono::duration<float>(std::chrono::steady_clock::now() - timerIt->second.at).count();
+				if (secondsSince > timerIt->second.resetAfter) next = 0;
+			}
+
 			if (next >= taunts.size()) next = 0;
 			index = next;
 			next = (next + 1) % taunts.size();
@@ -274,6 +292,9 @@ class $modify(PSPlayerObject, PlayerObject) {
 		auto const& taunt = taunts[index];
 		if (!sprite->triggerAnim(*pack, taunt.anim, gamemode, "Mod:Taunt", true)) return false;
 
+		m_fields->tauntInterruptByTaunts = taunt.interruptByTaunts;
+		m_fields->tauntTimer[key] = { std::chrono::steady_clock::now(), taunt.resetAfter };
+
 		if (!taunt.soundId.empty() && playedSounds.insert(fmt::format("{}/{}", key, taunt.soundId)).second) {
 			audio::playEntry(*pack, m_isPlatformer, gamemode, taunt.soundId);
 		}
@@ -289,6 +310,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		m_fields->tauntNext.clear();
 		m_fields->tauntLast.clear();
+		m_fields->tauntTimer.clear();
 
 		if (auto* sprite = m_fields->modSprite) sprite->resetState();
 	}

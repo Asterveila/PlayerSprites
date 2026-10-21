@@ -629,6 +629,17 @@ namespace playersprites {
 					taunt.order = static_cast<int>(orderRes.unwrap());
 				}
 
+				auto resetRes = optionalFloat(tauntJson, "resetAfter", ctx);
+				if (resetRes.isErr()) return Err(resetRes.unwrapErr());
+				if (auto resetAfter = resetRes.unwrap()) {
+					if (*resetAfter < 0.f) {
+						return Err(fmt::format("{}: 'resetAfter' can't be negative", ctx));
+					}
+					taunt.resetAfter = *resetAfter;
+				}
+
+				taunt.interruptByTaunts = optionalBool(tauntJson, "interruptByTaunts", true);
+
 				auto const& sfxVal = tauntJson["sfx"];
 				if (!sfxVal.isNull()) {
 					taunt.soundId = fmt::format("Taunt: {}", tauntName);
