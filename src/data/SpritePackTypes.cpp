@@ -147,6 +147,31 @@ namespace playersprites {
 			return Ok(std::move(merged));
 		}
 
+		Result<void, std::string> collectRaw(matjson::Value const& list, std::string const& key, RawEvents& out) {
+			if (list.isNull()) return Ok();
+			if (!list.isArray()) {
+				return Err(fmt::format("spr-pack.json: '{}' must be an array", key));
+			}
+			for (auto const& block : list) {
+				if (!block.isObject()) {
+					return Err(fmt::format("spr-pack.json: each entry in '{}' must be an object keyed by gamemode", key));
+				}
+				for (auto const& [gamemodeName, gamemodeJson] : block) {
+					if (gamemodeName == "globalAttributes") {
+						return Err(fmt::format("spr-pack.json: 'globalAttributes' goes at the root of the file, not inside '{}'", key));
+					}
+					if (!gamemodeJson.isObject()) {
+						return Err(fmt::format("gamemode '{}': expected an object of {}", gamemodeName, key));
+					}
+					auto& gmRaw = out[gamemodeName];
+					for (auto const& [name, entryJson] : gamemodeJson) {
+						gmRaw[name] = entryJson;
+					}
+				}
+			}
+			return Ok();
+		}
+
 	}
 
 	float AnimEvent::rollFrameTime() const {
@@ -524,36 +549,13 @@ namespace playersprites {
 			if (attrRes.isErr()) return Err(attrRes.unwrapErr());
 		}
 
-		auto const& eventsVal = json["events"];
-		if (eventsVal.isNull()) {
-			return Ok(pack);
-		}
-		if (!eventsVal.isArray()) {
-			return Err(std::string("spr-pack.json: 'events' must be an array"));
-		}
-
-		// "events" is an array of objects, each keyed by gamemode name.
-		// if the same gamemode/event pair shows up twice across entries, the later one takes prio
+		// "events" and "taunts" are both arrays of objects, each keyed by gamemode name.
+		// if the same gamemode/id pair shows up twice across entries, the later one takes prio
 		RawEvents rawEvents;
-		for (auto const& block : eventsVal) {
-			if (!block.isObject()) {
-				return Err(std::string("spr-pack.json: each entry in 'events' must be an object keyed by gamemode"));
-			}
-			for (auto const& [gamemodeName, gamemodeJson] : block) {
-				if (gamemodeName == "globalAttributes") {
-					return Err(std::string("spr-pack.json: 'globalAttributes' goes at the root of the file, not inside 'events'"));
-				}
+		if (auto res = collectRaw(json["events"], "events", rawEvents); res.isErr()) return Err(res.unwrapErr());
 
-				if (!gamemodeJson.isObject()) {
-					return Err(fmt::format("gamemode '{}': expected an object of events", gamemodeName));
-				}
-				pack.gamemodes[gamemodeName];
-				auto& gmRaw = rawEvents[gamemodeName];
-				for (auto const& [eventName, eventJson] : gamemodeJson) {
-					gmRaw[eventName] = eventJson;
-				}
-			}
-		}
+		RawEvents rawTaunts;
+		if (auto res = collectRaw(json["taunts"], "taunts", rawTaunts); res.isErr()) return Err(res.unwrapErr());
 
 		// it was difficult to parse the pieces together
 		for (auto const& [gamemodeName, gmRaw] : rawEvents) {
@@ -588,6 +590,82 @@ namespace playersprites {
 
 				gmEvents.events[eventName] = std::move(ev);
 			}
+		}
+
+		matjson::Value tauntSfx = matjson::Value::object();
+		bool hasTauntSfx = false;
+
+		for (auto const& [gamemodeName, gmRaw] : rawTaunts) {
+			auto& gmEvents = pack.gamemodes[gamemodeName];
+			for (auto const& entry : gmRaw) {
+				auto const& tauntName = entry.first;
+				auto ctx = fmt::format("taunt '{}/{}'", gamemodeName, tauntName);
+
+				std::vector<std::string> chain;
+				auto resolvedRes = resolveMimic(rawTaunts, gamemodeName, tauntName, chain);
+				if (resolvedRes.isErr()) return Err(resolvedRes.unwrapErr());
+				auto tauntJson = resolvedRes.unwrap();
+
+				auto animRes = AnimEvent::parse(fmt::format("{}/{}", gamemodeName, tauntName), tauntJson);
+				if (animRes.isErr()) return Err(animRes.unwrapErr());
+
+				Taunt taunt;
+				taunt.anim = animRes.unwrap();
+				taunt.anim.id = tauntName;
+
+				if (optionalBool(tauntJson, "loopAnim", false)) {
+					geode::log::warn("{}: taunts can't loop, no need for 'loopAnim'", ctx);
+				}
+				taunt.anim.loopAnim = false;
+
+				if (!taunt.anim.holdFor.has_value() || *taunt.anim.holdFor < 0.f) {
+					return Err(fmt::format("{}: taunts need a 'holdFor' of 0 or more (how long the last frame stays before going back to other animations)", ctx));
+				}
+
+				auto const& orderVal = tauntJson["order"];
+				if (!orderVal.isNull()) {
+					auto orderRes = orderVal.asInt();
+					if (orderRes.isErr()) return Err(fmt::format("{}: 'order' must be a whole number", ctx));
+					taunt.order = static_cast<int>(orderRes.unwrap());
+				}
+
+				auto const& sfxVal = tauntJson["sfx"];
+				if (!sfxVal.isNull()) {
+					taunt.soundId = fmt::format("Taunt: {}", tauntName);
+
+					auto& gmSfx = tauntSfx[gamemodeName];
+					if (!gmSfx.isObject()) gmSfx = matjson::Value::object();
+					gmSfx[taunt.soundId] = sfxVal;
+					hasTauntSfx = true;
+				}
+
+				gmEvents.taunts.push_back(std::move(taunt));
+			}
+		}
+
+		if (hasTauntSfx) {
+			auto sfxRes = SoundSet::parse(rootPath, tauntSfx);
+			if (sfxRes.isErr()) return Err(fmt::format("taunt sfx in spr-pack.json: {}", sfxRes.unwrapErr()));
+			pack.sounds = sfxRes.unwrap();
+		}
+
+		for (auto& [gamemodeName, gmEvents] : pack.gamemodes) {
+			auto& taunts = gmEvents.taunts;
+			if (taunts.empty()) continue;
+
+			std::sort(taunts.begin(), taunts.end(), [](Taunt const& a, Taunt const& b) { return a.anim.id < b.anim.id; });
+
+			bool anyOrder = std::any_of(taunts.begin(), taunts.end(), [](Taunt const& t) { return t.order.has_value(); });
+			if (!anyOrder) continue;
+
+			gmEvents.tauntsOrdered = true;
+			bool allOrdered = std::all_of(taunts.begin(), taunts.end(), [](Taunt const& t) { return t.order.has_value(); });
+			if (!allOrdered) {
+				geode::log::warn("pack '{}': some '{}' taunts have 'order' and some don't. the ones without it play last.", id, gamemodeName);
+			}
+			std::stable_sort(taunts.begin(), taunts.end(), [](Taunt const& a, Taunt const& b) {
+				return a.order.value_or(INT_MAX) < b.order.value_or(INT_MAX);
+			});
 		}
 
 		for (auto& [gamemodeName, gmEvents] : pack.gamemodes) {

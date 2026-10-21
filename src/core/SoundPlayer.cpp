@@ -79,6 +79,17 @@ namespace playersprites::audio {
 		}
 	}
 
+	void playEntry(SpritePack const& pack, bool platformer, std::string const& gamemode, std::string const& entryId) {
+		auto const* entry = pack.sounds.entry(gamemode, entryId);
+		if (!entry || entry->files.empty()) return;
+
+		if (!settings::isPackActive(pack.id, platformer)) return;
+		if (!settings::isSfxEnabled(pack.id)) return;
+		if (!settings::isSoundEnabled(pack.id, gamemode, entry->id, entry->defaultEnabled)) return;
+
+		playFile(pickFile(pack.id, gamemode, *entry));
+	}
+
 	void playFile(fs::path const& file) {
 		FMODAudioEngine::sharedEngine()->playEffect(enginePath(file));
 	}

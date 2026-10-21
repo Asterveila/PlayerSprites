@@ -4,6 +4,7 @@
 #include "data/PackSettings.hpp"
 #include "core/SoundPlayer.hpp"
 
+#include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/PlayerObject.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/GhostTrailEffect.hpp>
@@ -24,7 +25,7 @@ namespace {
 			if (!settings::isPackActive(pack.id, platformer)) continue;
 
 			auto gmIt = pack.gamemodes.find(gamemode);
-			if (gmIt == pack.gamemodes.end() || gmIt->second.events.empty()) continue;
+			if (gmIt == pack.gamemodes.end() || (gmIt->second.events.empty() && gmIt->second.taunts.empty())) continue;
 
 			if (!settings::isGamemodeEnabled(pack.id, gamemode)) continue;
 
@@ -51,6 +52,9 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		bool levelComplete = false;
 		bool hasCompleteAnim = false;
+
+		std::unordered_map<std::string, size_t> tauntNext;
+		std::unordered_map<std::string, size_t> tauntLast;
 	};
 
 	bool init(int player, int ship, GJBaseGameLayer* gameLayer, cocos2d::CCLayer* layer, bool playLayer) {
@@ -234,12 +238,57 @@ class $modify(PSPlayerObject, PlayerObject) {
 		}
 	}
 
+	bool runTaunt(std::unordered_set<std::string>& playedSounds) {
+		auto* sprite = m_fields->modSprite;
+		if (!sprite || m_isDead || m_fields->levelComplete) return false;
+		if (sprite->isBlocking()) return false;
+
+		auto gamemode = currentGamemodeName(this);
+		auto* pack = activePackFor(m_isPlatformer, gamemode);
+		if (!pack) return false;
+
+		auto const& gm = pack->gamemodes.at(gamemode);
+		auto const& taunts = gm.taunts;
+		if (taunts.empty()) return false;
+
+		auto const key = fmt::format("{}/{}", pack->id, gamemode);
+
+		size_t index = 0;
+		if (gm.tauntsOrdered) {
+			auto& next = m_fields->tauntNext[key];
+			if (next >= taunts.size()) next = 0;
+			index = next;
+			next = (next + 1) % taunts.size();
+		} else if (taunts.size() > 1) {
+			static std::mt19937 gen{ std::random_device{}() };
+			auto lastIt = m_fields->tauntLast.find(key);
+			if (lastIt == m_fields->tauntLast.end()) {
+				index = std::uniform_int_distribution<size_t>(0, taunts.size() - 1)(gen);
+			} else {
+				index = std::uniform_int_distribution<size_t>(0, taunts.size() - 2)(gen);
+				if (index >= lastIt->second) index++;
+			}
+			m_fields->tauntLast[key] = index;
+		}
+
+		auto const& taunt = taunts[index];
+		if (!sprite->triggerAnim(*pack, taunt.anim, gamemode, "Mod:Taunt", true)) return false;
+
+		if (!taunt.soundId.empty() && playedSounds.insert(fmt::format("{}/{}", key, taunt.soundId)).second) {
+			audio::playEntry(*pack, m_isPlatformer, gamemode, taunt.soundId);
+		}
+		return true;
+	}
+
 	void resetObject() {
 		PlayerObject::resetObject();
 
 		audio::resetSequences();
 		m_fields->levelComplete = false;
 		m_fields->hasCompleteAnim = false;
+
+		m_fields->tauntNext.clear();
+		m_fields->tauntLast.clear();
 
 		if (auto* sprite = m_fields->modSprite) sprite->resetState();
 	}
@@ -357,5 +406,29 @@ class $modify(PSGhostTrailEffect, GhostTrailEffect) {
 		player->setRotation(ogRot + extraRotation);
 		GhostTrailEffect::trailSnapshot(dt);
 		player->setRotation(ogRot);
+	}
+};
+
+class $modify(PSPlayLayer, PlayLayer) {
+	void setupHasCompleted() {
+		PlayLayer::setupHasCompleted();
+
+		this->addEventListener(
+			KeybindSettingPressedEventV3(Mod::get(), "taunt-keybind"),
+			[this](Keybind const&, bool down, bool repeat, double) {
+				if (!down || repeat || m_isPaused) return false;
+
+				std::vector<PlayerObject*> players = { m_player1 };
+				if (m_gameState.m_isDualMode) players.push_back(m_player2);
+
+				bool tauntStarted = false;
+				std::unordered_set<std::string> playedSounds;
+				for (auto* player : players) {
+					if (!player) continue;
+					if (static_cast<PSPlayerObject*>(player)->runTaunt(playedSounds)) tauntStarted = true;
+				}
+				return tauntStarted;
+			}
+		);
 	}
 };

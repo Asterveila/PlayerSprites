@@ -8,7 +8,7 @@
 	},
 	"id": "saritahhh.playersprites",
 	"name": "PlayerSprites",
-	"version": "v1.0.0",
+	"version": "v1.1.0",
 	"developer": "Saritahhh",
 	"description": "Replace your gamemodes with animated sprites!",
 	"settings": {
@@ -24,6 +24,13 @@
 			"name": "Export Folder",
 			"description": "Defines where exported sprite packs get saved as .zip files.",
 			"default": "{mod_save_dir}/exports"
+		},
+		"taunt-keybind": {
+			"type": "keybind",
+			"name": "Taunt Key",
+			"description": "Defines the key to use for the **'Taunt'** function. Plays one of your active Sprite Pack's taunt animations, if there's any for your current gamemode.",
+			"category": "gameplay",
+			"default": "T"
 		}
 	},
 	"resources": {

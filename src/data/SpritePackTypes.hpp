@@ -78,9 +78,20 @@ namespace playersprites {
 
 		static geode::Result<AnimEvent, std::string> parse(std::string const& eventName, matjson::Value const& json);
 	};
+
+	// a misc animation the player triggers manually with the taunt keybind in mod settings.
+	struct Taunt {
+		AnimEvent anim;
+		std::optional<int> order; // if ANY taunt in a gamemode has this, they all play in order. otherwise one is picked at random.
+		std::string soundId;
+	};
+
 	struct GamemodeEvents {
 		std::unordered_map<std::string, AnimEvent> events;
 		std::unordered_map<std::string, std::string> triggerIndex;
+
+		std::vector<Taunt> taunts; // already sorted when tauntsOrdered is true
+		bool tauntsOrdered = false;
 	};
 
 	// pack-wide settings for stuff that defines the overall look of ur sprites, all of em.

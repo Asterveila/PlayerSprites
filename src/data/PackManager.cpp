@@ -65,7 +65,14 @@ namespace playersprites {
 			}
 			auto soundsRes = SoundSet::parse(root, soundsParse.unwrap());
 			if (soundsRes.isErr()) return Err(soundsRes.unwrapErr());
+			
+			auto tauntSounds = std::move(pack.sounds);
 			pack.sounds = soundsRes.unwrap();
+			for (auto& [gamemode, entries] : tauntSounds.gamemodes) {
+				for (auto& [entryId, entry] : entries) {
+					pack.sounds.gamemodes[gamemode].emplace(entryId, std::move(entry));
+				}
+			}
 		}
 
 		return geode::Ok(std::move(pack));
