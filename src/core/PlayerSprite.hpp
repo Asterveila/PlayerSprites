@@ -58,6 +58,7 @@ namespace playersprites {
 
 		bool isPlaying() const { return m_state != State::Idle; }
 		bool isBlocking() const { return m_state != State::Idle && !m_currentCanBeInterrupted; }
+		bool isHolding() const { return m_state == State::Holding; }
 
 		bool currentCancelsOn(std::string const& eventName) const;
 

@@ -639,6 +639,7 @@ namespace playersprites {
 				}
 
 				taunt.interruptByTaunts = optionalBool(tauntJson, "interruptByTaunts", true);
+				taunt.allowInMotion = optionalBool(tauntJson, "allowInMotion", false);
 
 				auto const& sfxVal = tauntJson["sfx"];
 				if (!sfxVal.isNull()) {

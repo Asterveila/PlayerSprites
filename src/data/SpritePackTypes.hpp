@@ -87,6 +87,7 @@ namespace playersprites {
 
 		float resetAfter = 0.f; // only if taunts are ordered. does the same as resetAfter for SFX.
 		bool interruptByTaunts = true; // defines if a taunt can be cancelled midway so another taunt plays. not the same as canBeInterrupted, as for taunts that defines its prio over event animations.
+		bool allowInMotion = false; // kinda self explanatory, if true, this taunt can override event animations (like moving, pads, orbs, etc), if false, can only be played while idle on platformer.
 	};
 
 	struct GamemodeEvents {
