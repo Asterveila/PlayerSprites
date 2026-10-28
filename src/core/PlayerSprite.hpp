@@ -31,6 +31,15 @@ namespace playersprites {
 
 		bool m_currentIsStateDriven = false;
 
+		float m_currentAnimDuration = 0.f;
+		TintColour m_currentTint;
+
+		ccColor3B m_playerColour1 = { 255, 255, 255 };
+		ccColor3B m_playerColour2 = { 255, 255, 255 };
+		ccColor3B m_glowColour = { 255, 255, 255 };
+
+		void applyTint();
+
 		std::string m_currentGamemode;
 		std::string m_currentEventName;
 
@@ -72,6 +81,9 @@ namespace playersprites {
 
 		CCSprite* getSprite() const { return m_sprite; }
 		CCPoint getCurrentOffset() const;
+
+		float getCurrentAnimDuration() const { return m_currentAnimDuration; }
+		void setPlayerColours();
 
 		void setFlipped(bool flipped);
 

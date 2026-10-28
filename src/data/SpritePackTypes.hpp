@@ -3,14 +3,25 @@
 #include <Geode/Result.hpp>
 #include <matjson.hpp>
 
-// hi ! if you're here before the mod is out for real...
-// this is your wiki.
-// im not writing one until ts is perfect.
-// which it is not.
-// good fucking luck.
+// the wiki if it was fucking GOOOOOOOOOD
+// ima be so fr ill keep these comments for anyone that reads this instead of the wiki
+// i think they're explicative enough.
+// i think.
 namespace playersprites {
 
 	namespace fs = std::filesystem;
+
+	// stuff for tintColour key
+	// type of colour source to use, None is... none (white), custom is, you'll never believe ts: a custom hex code
+	// and i sure fucking wonder what p1 p2 and glow are man i dont know actually please help me out
+	enum class TintSource { 
+		None, Custom, P1, P2, Glow 
+	};
+
+	struct TintColour {
+		TintSource source = TintSource::None;
+		uint8_t r = 255, g = 255, b = 255;
+	};
 
 	struct AnimEvent {
 		std::string id;
@@ -60,6 +71,9 @@ namespace playersprites {
 		// specific to Mod:StaticDeathDisappear.
 		// how long the fade out anim takes when your animation's last frame is hit.
 		std::optional<float> fadeOutTime;
+		
+		// i explained what this is up there
+		TintColour tintColour;
 
 		// self explanatory. if false, the animation will play out fully even if other events happen while this one's running.
 		// if true, i sure fucking wonder.
@@ -92,9 +106,9 @@ namespace playersprites {
 
 	struct GamemodeEvents {
 		std::unordered_map<std::string, AnimEvent> events;
-		std::unordered_map<std::string, std::string> triggerIndex;
+		std::unordered_map<std::string, std::vector<std::string>> triggerIndex;
 
-		std::vector<Taunt> taunts; // already sorted when tauntsOrdered is true
+		std::vector<Taunt> taunts;
 		bool tauntsOrdered = false;
 	};
 
@@ -163,7 +177,7 @@ namespace playersprites {
 
 		std::unordered_map<std::string, GamemodeEvents> gamemodes;
 
-		AnimEvent const* findEvent(std::string const& gamemode, std::string const& triggerName) const;
+		std::vector<AnimEvent const*> findEvents(std::string const& gamemode, std::string const& triggerName) const;
 		AnimEvent const* findEventById(std::string const& gamemode, std::string const& id) const;
 
 		static geode::Result<SpritePack, std::string> parse(

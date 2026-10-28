@@ -36,10 +36,10 @@ namespace {
 
 	AnimEvent const* findEnabledEvent(SpritePack const& pack, std::string const& gamemode, std::string const& triggerName) {
 		if (!settings::isGamemodeEnabled(pack.id, gamemode)) return nullptr;
-		auto* anim = pack.findEvent(gamemode, triggerName);
-		if (!anim) return nullptr;
-		if (!settings::isEventEnabled(pack.id, gamemode, anim->id)) return nullptr;
-		return anim;
+		for (auto const* anim : pack.findEvents(gamemode, triggerName)) {
+			if (settings::isEventEnabled(pack.id, gamemode, anim->id)) return anim;
+		}
+		return nullptr;
 	}
 }
 
@@ -48,6 +48,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 		PlayerSprite* modSprite = nullptr;
 		
 		geode::Ref<CCSprite> ghostGuide;
+		geode::Ref<CCSprite> ghostOriginal;
 		float ghostRotation = 0.f;
 
 		bool levelComplete = false;
@@ -59,6 +60,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		struct TauntTimer {
 			std::chrono::steady_clock::time_point at;
+			float animDuration = 0.f;
 			float resetAfter = 0.f;
 		};
 		std::unordered_map<std::string, TauntTimer> tauntTimer;
@@ -90,10 +92,24 @@ class $modify(PSPlayerObject, PlayerObject) {
 		return m_fields->ghostGuide.data();
 	}
 
+	void restoreGhostTrail() {
+		auto flds = m_fields.self();
+		flds->ghostRotation = 0.f;
+		if (!m_ghostTrail || !flds->ghostGuide) return;
+		if (m_ghostTrail->m_iconSprite != flds->ghostGuide.data()) return;
+
+		m_ghostTrail->m_iconSprite = flds->ghostOriginal ? flds->ghostOriginal.data() : m_iconSprite;
+	}
+
 	void updateModSprite() {
 		auto flds = m_fields.self();
 		auto* sprite = flds->modSprite;
+		auto gm = GameManager::sharedState();
 		if (!sprite) return;
+
+		if (m_ghostTrail && m_ghostTrail->m_iconSprite && m_ghostTrail->m_iconSprite != flds->ghostGuide.data()) {
+			flds->ghostOriginal = m_ghostTrail->m_iconSprite;
+		}
 
 		if (flds->levelComplete) {
 			sprite->setVisible(flds->hasCompleteAnim);
@@ -104,6 +120,8 @@ class $modify(PSPlayerObject, PlayerObject) {
 		auto* pack = activePackFor(m_isPlatformer, gamemode);
 
 		if (!pack) {
+			this->restoreGhostTrail();
+
 			if (!anyPackActive(m_isPlatformer)) return;
 
 			if (sprite->isPlaying()) sprite->stopAnim();
@@ -112,6 +130,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 			return;
 		}
 		sprite->setVisible(true);
+		sprite->setPlayerColours();
 
 		if (sprite->isPlaying() && sprite->currentGamemode() != gamemode) {
 			sprite->stopAnim();
@@ -138,6 +157,10 @@ class $modify(PSPlayerObject, PlayerObject) {
 			}
 		}
 
+		if (!sprite->isPlaying() && !m_isDead) {
+			sprite->getSprite()->setVisible(false);
+		}
+
 		if (sprite->currentLockRotation()) {
 			this->setRotation(0.f);
 
@@ -154,7 +177,9 @@ class $modify(PSPlayerObject, PlayerObject) {
 		if (m_ghostTrail) {
 			auto behavior = Mod::get()->getSettingValue<std::string>("ghost-trail-behavior");
 
-			if (behavior == "replace") {
+			if (behavior == "replace" && !sprite->isPlaying()) {
+				this->restoreGhostTrail();
+			} else if (behavior == "replace") {
 				auto* pSprite = sprite->getSprite();
 
 				if (!flds->ghostGuide) flds->ghostGuide = CCSprite::create();
@@ -180,7 +205,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 				guide->setScaleY(std::abs(pSprite->getScaleY()) * (flipY ? -1.f : 1.f));
 
 				m_ghostTrail->m_iconSprite = guide;
-				m_ghostTrail->m_color = { 255, 255, 255 };
+				m_ghostTrail->m_color = pSprite->getColor();
 				m_ghostTrail->m_position = CCPoint(0, 0);
 
 				float mainRotation = m_mainLayer->getRotation();
@@ -281,7 +306,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 			auto timerIt = m_fields->tauntTimer.find(key);
 			if (timerIt != m_fields->tauntTimer.end() && timerIt->second.resetAfter > 0.f) {
 				float secondsSince = std::chrono::duration<float>(std::chrono::steady_clock::now() - timerIt->second.at).count();
-				if (secondsSince > timerIt->second.resetAfter) next = 0;
+				if (secondsSince > timerIt->second.animDuration + timerIt->second.resetAfter) next = 0;
 			}
 
 			if (next >= taunts.size()) next = 0;
@@ -308,7 +333,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 		else m_fields->tauntLast[key] = index;
 		m_fields->tauntInterruptByTaunts = taunt.interruptByTaunts;
 		m_fields->tauntAllowInMotion = taunt.allowInMotion;
-		m_fields->tauntTimer[key] = { std::chrono::steady_clock::now(), taunt.resetAfter };
+		m_fields->tauntTimer[key] = { std::chrono::steady_clock::now(), sprite->getCurrentAnimDuration(), taunt.resetAfter };
 
 		if (!taunt.soundId.empty() && playedSounds.insert(fmt::format("{}/{}", key, taunt.soundId)).second) {
 			audio::playEntry(*pack, m_isPlatformer, gamemode, taunt.soundId);

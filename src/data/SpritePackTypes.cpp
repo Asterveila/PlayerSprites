@@ -1,5 +1,6 @@
 #include "SpritePackTypes.hpp"
 #include "EventShortcuts.hpp"
+#include <Geode/utils/cocos.hpp>
 #include <random>
 
 using namespace geode::prelude;
@@ -98,7 +99,38 @@ namespace playersprites {
 			return val.asBool().unwrapOr(defaultValue);
 		}
 
+		Result<TintColour, std::string> parseTintColour(matjson::Value const& json, std::string const& ctx) {
+			TintColour tint;
+			auto const& val = json["tintColour"];
+			if (val.isNull()) return Ok(tint);
+
+			auto strRes = val.asString();
+			if (strRes.isErr()) {
+				return Err(fmt::format("{}: 'tintColour' must be a string (a hex colour, \"P1\", \"P2\" or \"Glow\")", ctx));
+			}
+			auto str = strRes.unwrap();
+
+			auto lower = str;
+			std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+			if (lower == "p1") { tint.source = TintSource::P1; return Ok(tint); }
+			if (lower == "p2") { tint.source = TintSource::P2; return Ok(tint); }
+			if (lower == "glow") { tint.source = TintSource::Glow; return Ok(tint); }
+
+			auto colourRes = geode::cocos::cc3bFromHexString(str, false);
+			if (colourRes.isErr()) {
+				return Err(fmt::format("{}: 'tintColour' '{}' isn't valid, use a hex colour like \"#FF8800\" or one of \"P1\", \"P2\", \"Glow\"", ctx, str));
+			}
+
+			auto colour = colourRes.unwrap();
+			tint.source = TintSource::Custom;
+			tint.r = colour.r;
+			tint.g = colour.g;
+			tint.b = colour.b;
+			return Ok(tint);
+		}
+
 		using RawEvents = std::unordered_map<std::string, std::unordered_map<std::string, matjson::Value>>;
+		using RawOrder = std::unordered_map<std::string, std::vector<std::string>>;
 
 		// i made the mimic
 		Result<matjson::Value, std::string> resolveMimic(RawEvents const& raw, std::string const& gamemode, std::string const& eventName, std::vector<std::string>& chain) {
@@ -147,7 +179,7 @@ namespace playersprites {
 			return Ok(std::move(merged));
 		}
 
-		Result<void, std::string> collectRaw(matjson::Value const& list, std::string const& key, RawEvents& out) {
+		Result<void, std::string> collectRaw(matjson::Value const& list, std::string const& key, RawEvents& out, RawOrder* order = nullptr) {
 			if (list.isNull()) return Ok();
 			if (!list.isArray()) {
 				return Err(fmt::format("spr-pack.json: '{}' must be an array", key));
@@ -165,7 +197,10 @@ namespace playersprites {
 					}
 					auto& gmRaw = out[gamemodeName];
 					for (auto const& [name, entryJson] : gamemodeJson) {
-						gmRaw[name] = entryJson;
+						std::string nameStr = std::string(name);
+						bool isNew = gmRaw.find(nameStr) == gmRaw.end();
+						gmRaw[nameStr] = entryJson;
+						if (order && isNew) (*order)[std::string(gamemodeName)].push_back(nameStr);
 					}
 				}
 			}
@@ -328,6 +363,10 @@ namespace playersprites {
 		auto fadeOutRes = optionalFloat(json, "fadeOutTime", eventName);
 		if (fadeOutRes.isErr()) return Err(fadeOutRes.unwrapErr());
 		ev.fadeOutTime = fadeOutRes.unwrap();
+
+		auto tintRes = parseTintColour(json, eventName);
+		if (tintRes.isErr()) return Err(tintRes.unwrapErr());
+		ev.tintColour = tintRes.unwrap();
 
 		return Ok(ev);
 	}
@@ -512,14 +551,17 @@ namespace playersprites {
 		return Ok(std::move(set));
 	}
 
-	AnimEvent const* SpritePack::findEvent(std::string const& gamemode, std::string const& triggerName) const {
+	std::vector<AnimEvent const*> SpritePack::findEvents(std::string const& gamemode, std::string const& triggerName) const {
+		std::vector<AnimEvent const*> found;
 		auto gmIt = gamemodes.find(gamemode);
-		if (gmIt == gamemodes.end()) return nullptr;
+		if (gmIt == gamemodes.end()) return found;
 		auto triggerIt = gmIt->second.triggerIndex.find(triggerName);
-		if (triggerIt == gmIt->second.triggerIndex.end()) return nullptr;
-		auto evIt = gmIt->second.events.find(triggerIt->second);
-		if (evIt == gmIt->second.events.end()) return nullptr;
-		return &evIt->second;
+		if (triggerIt == gmIt->second.triggerIndex.end()) return found;
+		for (auto const& eventId : triggerIt->second) {
+			auto evIt = gmIt->second.events.find(eventId);
+			if (evIt != gmIt->second.events.end()) found.push_back(&evIt->second);
+		}
+		return found;
 	}
 
 	AnimEvent const* SpritePack::findEventById(std::string const& gamemode, std::string const& id) const {
@@ -552,7 +594,8 @@ namespace playersprites {
 		// "events" and "taunts" are both arrays of objects, each keyed by gamemode name.
 		// if the same gamemode/id pair shows up twice across entries, the later one takes prio
 		RawEvents rawEvents;
-		if (auto res = collectRaw(json["events"], "events", rawEvents); res.isErr()) return Err(res.unwrapErr());
+		RawOrder eventOrder;
+		if (auto res = collectRaw(json["events"], "events", rawEvents, &eventOrder); res.isErr()) return Err(res.unwrapErr());
 
 		RawEvents rawTaunts;
 		if (auto res = collectRaw(json["taunts"], "taunts", rawTaunts); res.isErr()) return Err(res.unwrapErr());
@@ -681,20 +724,34 @@ namespace playersprites {
 		}
 
 		for (auto& [gamemodeName, gmEvents] : pack.gamemodes) {
-			for (auto const& [eventId, ev] : gmEvents.events) {
-				auto triggers = ev.triggerOn.empty() ? std::vector<std::string>{ eventId } : ev.triggerOn;
+			auto orderIt = eventOrder.find(gamemodeName);
+			if (orderIt == eventOrder.end()) continue;
+
+			auto addCandidate = [&](std::string const& trigger, std::string const& eventId) {
+				auto& candidates = gmEvents.triggerIndex[trigger];
+				if (std::find(candidates.begin(), candidates.end(), eventId) == candidates.end()) {
+					candidates.push_back(eventId);
+				}
+			};
+
+			for (auto const& eventId : orderIt->second) {
+				auto evIt = gmEvents.events.find(eventId);
+				if (evIt == gmEvents.events.end()) continue;
+				auto triggers = evIt->second.triggerOn.empty() ? std::vector<std::string>{ eventId } : evIt->second.triggerOn;
 				for (auto const& trigger : triggers) {
 					if (shortcuts::expand(trigger)) continue;
-					gmEvents.triggerIndex[trigger] = eventId;
+					addCandidate(trigger, eventId);
 				}
 			}
 
-			for (auto const& [eventId, ev] : gmEvents.events) {
-				auto triggers = ev.triggerOn.empty() ? std::vector<std::string>{ eventId } : ev.triggerOn;
+			for (auto const& eventId : orderIt->second) {
+				auto evIt = gmEvents.events.find(eventId);
+				if (evIt == gmEvents.events.end()) continue;
+				auto triggers = evIt->second.triggerOn.empty() ? std::vector<std::string>{ eventId } : evIt->second.triggerOn;
 				for (auto const& trigger : triggers) {
 					if (auto* covered = shortcuts::expand(trigger)) {
 						for (auto const& realEvent : *covered) {
-							gmEvents.triggerIndex.emplace(realEvent, eventId);
+							addCandidate(realEvent, eventId);
 						}
 					}
 				}

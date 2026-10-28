@@ -163,6 +163,10 @@ namespace playersprites {
 		m_currentIsStateDriven = isStateDriven || isStateAnim(anim);
 		m_currentGamemode = gamemode;
 		m_currentEventName = eventName;
+		m_currentTint = anim.tintColour;
+		m_currentAnimDuration = 0.f;
+
+		this->applyTint();
 
 		if (!anim.lockRotation) {
 			this->setRotation(0.f);
@@ -186,6 +190,7 @@ namespace playersprites {
 		}
 
 		float frameTime = anim.rollFrameTime();
+		m_currentAnimDuration = frameTime * static_cast<float>(frames.size());
 
 		auto* frameArray = CCArray::createWithCapacity(frames.size());
 		for (auto* frame : frames) {
@@ -333,6 +338,26 @@ namespace playersprites {
 			nullptr
 		);
 		this->runAction(fadeAway);
+	}
+
+	void PlayerSprite::applyTint() {
+		ccColor3B colour = { 255, 255, 255 };
+		switch (m_currentTint.source) {
+			case TintSource::Custom: colour = ccColor3B{ m_currentTint.r, m_currentTint.g, m_currentTint.b }; break;
+			case TintSource::P1: colour = m_playerColour1; break;
+			case TintSource::P2: colour = m_playerColour2; break;
+			case TintSource::Glow: colour = m_glowColour; break;
+			case TintSource::None: break;
+		}
+		m_sprite->setColor(colour);
+	}
+
+	void PlayerSprite::setPlayerColours() {
+		auto gm = GameManager::sharedState();
+		m_playerColour1 = gm->colorForIdx(gm->getPlayerColor());
+		m_playerColour2 = gm->colorForIdx(gm->getPlayerColor2());
+		m_glowColour = gm->colorForIdx(gm->getPlayerGlowColor());
+		if (m_currentTint.source != TintSource::None) this->applyTint();
 	}
 
 	CCPoint PlayerSprite::getCurrentOffset() const {
