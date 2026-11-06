@@ -105,60 +105,122 @@ namespace playersprites {
 		return nullptr;
 	}
 
+	bool PackManager::movePack(std::string const& id, int direction) {
+		auto it = std::find_if(m_loadedPacks.begin(), m_loadedPacks.end(), [&](SpritePack const& pack) { return pack.id == id; });
+		if (it == m_loadedPacks.end()) return false;
+
+		auto other = it;
+		if (direction < 0) {
+			if (it == m_loadedPacks.begin()) return false;
+			other = it - 1;
+		} else {
+			if (it + 1 == m_loadedPacks.end()) return false;
+			other = it + 1;
+		}
+
+		if (!m_registry.swapPacks(it->id, other->id)) return false;
+		if (auto res = m_registry.save(); res.isErr()) {
+			m_registry.swapPacks(it->id, other->id);
+			geode::log::error("couldn't save registry.json after reordering: {}", res.unwrapErr());
+			return false;
+		}
+
+		std::iter_swap(it, other);
+		return true;
+	}
+
+	Result<void, std::string> PackManager::deletePack(std::string const& id) {
+		if (!m_registry.contains(id)) return Err(std::string("that pack isn't in the registry."));
+
+		auto packsDir = Registry::packsDir().lexically_normal();
+		auto root = (packsDir / id).lexically_normal();
+		if (id.empty() || root.parent_path() != packsDir) {
+			return Err(fmt::format("'{}' doesn't seem to point to a folder inside the packs folder. nothing was deleted just to be safe.", id));
+		}
+
+		audio::unloadAll();
+
+		auto backup = m_registry;
+		m_registry.removePack(id);
+		if (auto res = m_registry.save(); res.isErr()) {
+			m_registry = backup;
+			return Err(fmt::format("couldn't update registry.json: {}", res.unwrapErr()));
+		}
+
+		settings::clearPack(id);
+
+		std::error_code ec;
+		fs::remove_all(root, ec);
+
+		this->reload();
+
+		if (ec) {
+			return Err(fmt::format(
+				"the pack was removed from your registry, but its folder couldn't be fully deleted ({}). if u wanna delete it by yourself: {}",
+				ec.message(), utils::string::pathToString(root)
+			));
+		}
+		return Ok();
+	}
+
 }
 
 namespace playersprites::transfer {
 
-	namespace {
+	// -----------------------------------------
+	// HELPERS START
+	// -----------------------------------------
 
-		bool isPackFile(fs::path const& file) {
-			auto ext = utils::string::pathToString(file.extension());
-			std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-			return ext == ".json" || ext == ".png" || ext == ".ogg" || ext == ".wav";
-		}
-
-		bool isThisBullshit(fs::path const& path) {
-			for (auto const& part : path) {
-				if (utils::string::pathToString(part) == "__MACOSX") return true;
-			}
-			return utils::string::pathToString(path.filename()).starts_with("._");
-		}
-
-		bool isSafeRelative(fs::path const& path) {
-			if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory()) return false;
-			for (auto const& part : path) {
-				if (part == fs::path("..")) return false;
-			}
-			return true;
-		}
-
-		std::string cleanupId(std::string name) {
-			for (auto& c : name) {
-				bool ok = std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == ' ' || c == '.';
-				if (!ok) c = '_';
-			}
-			auto first = name.find_first_not_of(". ");
-			if (first == std::string::npos) return "";
-			auto last = name.find_last_not_of(". ");
-			return name.substr(first, last - first + 1);
-		}
-
-		std::string uniqueId(std::string base, Registry const& registry) {
-			if (base.empty()) base = "imported-pack";
-
-			auto id = base;
-			for (int n = 2; fs::exists(Registry::packsDir() / id) || registry.contains(id); ++n) {
-				id = fmt::format("{}-{}", base, n);
-			}
-			return id;
-		}
-
-		void removeFolder(fs::path const& folder) {
-			std::error_code ec;
-			fs::remove_all(folder, ec);
-		}
-
+	bool isPackFile(fs::path const& file) {
+		auto ext = utils::string::pathToString(file.extension());
+		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		return ext == ".json" || ext == ".png" || ext == ".ogg" || ext == ".wav";
 	}
+
+	bool isThisBullshit(fs::path const& path) {
+		for (auto const& part : path) {
+			if (utils::string::pathToString(part) == "__MACOSX") return true;
+		}
+		return utils::string::pathToString(path.filename()).starts_with("._");
+	}
+
+	bool isSafeRelative(fs::path const& path) {
+		if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory()) return false;
+		for (auto const& part : path) {
+			if (part == fs::path("..")) return false;
+		}
+		return true;
+	}
+
+	std::string cleanupId(std::string name) {
+		for (auto& c : name) {
+			bool ok = std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == ' ' || c == '.';
+			if (!ok) c = '_';
+		}
+		auto first = name.find_first_not_of(". ");
+		if (first == std::string::npos) return "";
+		auto last = name.find_last_not_of(". ");
+		return name.substr(first, last - first + 1);
+	}
+
+	std::string uniqueId(std::string base, Registry const& registry) {
+		if (base.empty()) base = "imported-pack";
+
+		auto id = base;
+		for (int n = 2; fs::exists(Registry::packsDir() / id) || registry.contains(id); ++n) {
+			id = fmt::format("{}-{}", base, n);
+		}
+		return id;
+	}
+
+	void removeFolder(fs::path const& folder) {
+		std::error_code ec;
+		fs::remove_all(folder, ec);
+	}
+
+	// -----------------------------------------
+	// HELPERS END
+	// -----------------------------------------
 
 	Result<std::string, std::string> importPack(fs::path const& zipPath) {
 		auto unzipRes = file::Unzip::create(zipPath);

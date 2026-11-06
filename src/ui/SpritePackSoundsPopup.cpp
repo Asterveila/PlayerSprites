@@ -7,31 +7,35 @@
 
 namespace playersprites {
 
-	namespace {
+	// -----------------------------------------
+	// HELPERS START
+	// -----------------------------------------
 
-		std::string describeEntry(SoundEntry const& entry) {
-			std::string text;
+	std::string describeEntry(SoundEntry const& entry) {
+		std::string text;
 
-			bool shorthand = entry.triggerOn.size() == 1 && entry.triggerOn[0] == entry.id;
-			if (shorthand) {
-				for (size_t i = 0; i < entry.files.size(); ++i) {
-					if (i > 0) text += ", ";
-					text += geode::utils::string::pathToString(entry.files[i].filename());
-				}
-			} else {
-				text = "Triggered by: ";
-				for (size_t i = 0; i < entry.triggerOn.size(); ++i) {
-					if (i > 0) text += ", ";
-					text += entry.triggerOn[i];
-				}
-				text += fmt::format(" | {} sound{}", entry.files.size(), entry.files.size() == 1 ? "" : "s");
+		bool shorthand = entry.triggerOn.size() == 1 && entry.triggerOn[0] == entry.id;
+		if (shorthand) {
+			for (size_t i = 0; i < entry.files.size(); ++i) {
+				if (i > 0) text += ", ";
+				text += geode::utils::string::pathToString(entry.files[i].filename());
 			}
-
-			if (entry.ordered) text = "In order | " + text;
-			return text;
+		} else {
+			text = "Triggered by: ";
+			for (size_t i = 0; i < entry.triggerOn.size(); ++i) {
+				if (i > 0) text += ", ";
+				text += entry.triggerOn[i];
+			}
+			text += fmt::format(" | {} sound{}", entry.files.size(), entry.files.size() == 1 ? "" : "s");
 		}
 
+		if (entry.ordered) text = "In order | " + text;
+		return text;
 	}
+
+	// -----------------------------------------
+	// HELPERS END
+	// -----------------------------------------
 
 	SpritePackSoundsPopup* SpritePackSoundsPopup::create(std::string const& packId) {
 		auto ret = new SpritePackSoundsPopup();

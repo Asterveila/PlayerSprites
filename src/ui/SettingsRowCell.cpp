@@ -4,29 +4,39 @@
 
 namespace playersprites {
 
-	namespace {
+	// -----------------------------------------
+	// HELPERS START
+	// -----------------------------------------
 
-		constexpr float PREVIEW_BOX = 38.f;
-		constexpr float PREVIEW_PADDING = 3.f;
-		constexpr float TOGGLE_AREA = 40.f;
+	constexpr float PREVIEW_BOX = 38.f;
+	constexpr float PREVIEW_PADDING = 3.f;
+	constexpr float TOGGLE_AREA = 40.f;
 
-		std::string buildTriggeredByLine(AnimEvent const& anim) {
-			std::vector<std::string> const triggers =
-				anim.triggerOn.empty() ? std::vector<std::string>{ anim.id } : anim.triggerOn;
+	std::string buildTriggeredByLine(AnimEvent const& anim) {
+		std::vector<std::string> const triggers =
+			anim.triggerOn.empty() ? std::vector<std::string>{ anim.id } : anim.triggerOn;
 
-			std::string joined;
-			for (size_t i = 0; i < triggers.size(); ++i) {
-				if (i > 0) joined += ", ";
-				joined += triggers[i];
-			}
-			return fmt::format("Triggered by: {}", joined);
+		std::string joined;
+		for (size_t i = 0; i < triggers.size(); ++i) {
+			if (i > 0) joined += ", ";
+			joined += triggers[i];
 		}
-
+		return fmt::format("Triggered by: {}", joined);
 	}
 
-	SettingsRowCell* SettingsRowCell::createHeader(std::string const& gamemode, bool enabled, bool even, CCObject* target, SEL_MenuHandler selector) {
+	std::string buildTauntInfoLine(Taunt const& taunt, bool ordered) {
+		if (!ordered) return "Random";
+		if (taunt.order.has_value()) return fmt::format("Ordered: {}", *taunt.order);
+		return "Ordered: last";
+	}
+
+	// -----------------------------------------
+	// HELPERS END
+	// -----------------------------------------
+
+	SettingsRowCell* SettingsRowCell::createHeader(std::string const& gamemode, bool enabled, bool even, CCObject* target, SEL_MenuHandler selector, std::string const& suffix) {
 		auto ret = new SettingsRowCell();
-		if (ret->initHeader(gamemode, enabled, even, target, selector)) {
+			if (ret->initHeader(gamemode, enabled, even, target, selector, suffix)) {
 			ret->autorelease();
 			return ret;
 		}
@@ -44,7 +54,17 @@ namespace playersprites {
 		return nullptr;
 	}
 
-	bool SettingsRowCell::initHeader(std::string const& gamemode, bool enabled, bool even, CCObject* target, SEL_MenuHandler selector) {
+	SettingsRowCell* SettingsRowCell::createTaunt(SpritePack const& pack, Taunt const& taunt, bool ordered, bool enabled, bool even, CCObject* target, SEL_MenuHandler selector) {
+		auto ret = new SettingsRowCell();
+		if (ret->initTaunt(pack, taunt, ordered, enabled, even, target, selector)) {
+			ret->autorelease();
+			return ret;
+		}
+		delete ret;
+		return nullptr;
+	}
+
+	bool SettingsRowCell::initHeader(std::string const& gamemode, bool enabled, bool even, CCObject* target, SEL_MenuHandler selector, std::string const& suffix) {
 		if (!CCLayer::init()) return false;
 
 		CCSize size = { WIDTH, HEADER_HEIGHT };
@@ -56,7 +76,7 @@ namespace playersprites {
 		m_background->setColor({ 0, 0, 0 });
 		this->addChild(m_background, -1);
 
-		auto label = CCLabelBMFont::create(fmt::format("{} Animations", gamemode).c_str(), "goldFont.fnt");
+		auto label = CCLabelBMFont::create(fmt::format("{} {}", gamemode, suffix).c_str(), "goldFont.fnt");
 		label->setAnchorPoint({ 0.f, 0.5f });
 		label->setPosition({ TOGGLE_AREA, size.height / 2.f });
 		label->limitLabelWidth(WIDTH - 10.f - TOGGLE_AREA, 0.55f, 0.1f);
@@ -96,6 +116,41 @@ namespace playersprites {
 		triggersLabel->setOpacity(190);
 		triggersLabel->limitLabelWidth(maxTextWidth, 0.4f, 0.1f);
 		this->addChild(triggersLabel);
+
+		this->addToggle(enabled, target, selector, 0.7f);
+
+		return true;
+	}
+
+	bool SettingsRowCell::initTaunt(SpritePack const& pack, Taunt const& taunt, bool ordered, bool enabled, bool even, CCObject* target, SEL_MenuHandler selector) {
+		if (!CCLayer::init()) return false;
+
+		CCSize size = { WIDTH, EVENT_HEIGHT };
+		this->setContentSize(size);
+
+		m_background = CCLayerColor::create();
+		m_background->setContentSize(size);
+		m_background->setOpacity(even ? 50 : 25);
+		m_background->setColor({ 70, 45, 95 });
+		this->addChild(m_background, -1);
+
+		this->addPreview(pack, taunt.anim);
+
+		float textX = 10.f + PREVIEW_BOX + 10.f;
+		float maxTextWidth = WIDTH - textX - TOGGLE_AREA;
+
+		auto idLabel = CCLabelBMFont::create(taunt.anim.id.c_str(), "bigFont.fnt");
+		idLabel->setAnchorPoint({ 0.f, 0.5f });
+		idLabel->setPosition({ textX, size.height * 0.66f });
+		idLabel->limitLabelWidth(maxTextWidth, 0.45f, 0.1f);
+		this->addChild(idLabel);
+
+		auto infoLabel = CCLabelBMFont::create(buildTauntInfoLine(taunt, ordered).c_str(), "chatFont.fnt");
+		infoLabel->setAnchorPoint({ 0.f, 0.5f });
+		infoLabel->setPosition({ textX, size.height * 0.28f });
+		infoLabel->setOpacity(190);
+		infoLabel->limitLabelWidth(maxTextWidth, 0.4f, 0.1f);
+		this->addChild(infoLabel);
 
 		this->addToggle(enabled, target, selector, 0.7f);
 

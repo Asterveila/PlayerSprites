@@ -86,4 +86,12 @@ namespace playersprites {
 		return true;
 	}
 
+	bool Registry::swapPacks(std::string const& a, std::string const& b) {
+		auto first = std::find(m_packIds.begin(), m_packIds.end(), a);
+		auto second = std::find(m_packIds.begin(), m_packIds.end(), b);
+		if (first == m_packIds.end() || second == m_packIds.end()) return false;
+		std::iter_swap(first, second);
+		return true;
+	}
+
 }

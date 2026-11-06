@@ -10,53 +10,57 @@
 
 namespace playersprites::audio {
 
-	namespace {
-
-		std::unordered_set<std::string>& preloadedPaths() {
-			static std::unordered_set<std::string> paths;
-			return paths;
-		}
-
-		struct SequenceState {
-			size_t next = 0;
-			bool hasPlayed = false;
-			std::chrono::steady_clock::time_point lastPlayed;
-		};
-
-		std::unordered_map<std::string, SequenceState>& sequences() {
-			static std::unordered_map<std::string, SequenceState> states;
-			return states;
-		}
-
-		std::string enginePath(fs::path const& file) {
-			return geode::utils::string::pathToString(file);
-		}
-
-		fs::path const& pickFile(std::string const& packId, std::string const& gamemode, SoundEntry const& entry) {
-			size_t count = entry.files.size();
-
-			if (!entry.ordered || count == 1) {
-				static std::mt19937 gen{ std::random_device{}() };
-				return entry.files[std::uniform_int_distribution<size_t>(0, count - 1)(gen)];
-			}
-
-			auto& state = sequences()[fmt::format("{}/{}/{}", packId, gamemode, entry.id)];
-			auto now = std::chrono::steady_clock::now();
-
-			if (entry.resetAfter > 0.f && state.hasPlayed) {
-				float secondsSince = std::chrono::duration<float>(now - state.lastPlayed).count();
-				if (secondsSince > entry.resetAfter) state.next = 0;
-			}
-			if (state.next >= count) state.next = 0;
-
-			auto const& file = entry.files[state.next];
-			state.next = (state.next + 1) % count;
-			state.hasPlayed = true;
-			state.lastPlayed = now;
-			return file;
-		}
-
+	// -----------------------------------------
+	// HELPERS START
+	// -----------------------------------------
+	
+	std::unordered_set<std::string>& preloadedPaths() {
+		static std::unordered_set<std::string> paths;
+		return paths;
 	}
+
+	struct SequenceState {
+		size_t next = 0;
+		bool hasPlayed = false;
+		std::chrono::steady_clock::time_point lastPlayed;
+	};
+
+	std::unordered_map<std::string, SequenceState>& sequences() {
+		static std::unordered_map<std::string, SequenceState> states;
+		return states;
+	}
+
+	std::string enginePath(fs::path const& file) {
+		return geode::utils::string::pathToString(file);
+	}
+
+	fs::path const& pickFile(std::string const& packId, std::string const& gamemode, SoundEntry const& entry) {
+		size_t count = entry.files.size();
+
+		if (!entry.ordered || count == 1) {
+			static std::mt19937 gen{ std::random_device{}() };
+			return entry.files[std::uniform_int_distribution<size_t>(0, count - 1)(gen)];
+		}
+
+		auto& state = sequences()[fmt::format("{}/{}/{}", packId, gamemode, entry.id)];
+		auto now = std::chrono::steady_clock::now();
+
+		if (entry.resetAfter > 0.f && state.hasPlayed) {
+			float secondsSince = std::chrono::duration<float>(now - state.lastPlayed).count();
+			if (secondsSince > entry.resetAfter) state.next = 0;
+		}
+		if (state.next >= count) state.next = 0;
+
+		auto const& file = entry.files[state.next];
+		state.next = (state.next + 1) % count;
+		state.hasPlayed = true;
+		state.lastPlayed = now;
+		return file;
+	}
+
+	// -----------------------------------------
+	// HELPERS END
+	// -----------------------------------------
 
 	void playForEvent(bool platformer, std::string const& gamemode, std::string const& eventName) {
 		for (auto const& pack : PackManager::get().getLoadedPacks()) {

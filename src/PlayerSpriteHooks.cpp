@@ -12,35 +12,64 @@
 using namespace geode::prelude;
 using namespace playersprites;
 
-namespace {
-	bool anyPackActive(bool platformer) {
-		for (auto const& pack : PackManager::get().getLoadedPacks()) {
-			if (settings::isPackActive(pack.id, platformer)) return true;
+bool anyPackActive(bool platformer) {
+	for (auto const& pack : PackManager::get().getLoadedPacks()) {
+		if (settings::isPackActive(pack.id, platformer)) return true;
+	}
+	return false;
+}
+
+SpritePack const* activePackFor(bool platformer, std::string const& gamemode) {
+	for (auto const& pack : PackManager::get().getLoadedPacks()) {
+		if (!settings::isPackActive(pack.id, platformer)) continue;
+
+		auto gmIt = pack.gamemodes.find(gamemode);
+		if (gmIt == pack.gamemodes.end() || (gmIt->second.events.empty() && gmIt->second.taunts.empty())) continue;
+
+		if (!settings::isGamemodeEnabled(pack.id, gamemode)) continue;
+
+		return &pack;
+	}
+	return nullptr;
+}
+
+AnimEvent const* findEnabledEvent(SpritePack const& pack, std::string const& gamemode, std::string const& triggerName) {
+	if (!settings::isGamemodeEnabled(pack.id, gamemode)) return nullptr;
+	for (auto const* anim : pack.findEvents(gamemode, triggerName)) {
+		if (settings::isEventEnabled(pack.id, gamemode, anim->id)) return anim;
+	}
+	return nullptr;
+}
+
+std::vector<Taunt const*> enabledTaunts(SpritePack const& pack, std::string const& gamemode) {
+	std::vector<Taunt const*> result;
+	auto gmIt = pack.gamemodes.find(gamemode);
+	if (gmIt == pack.gamemodes.end()) return result;
+	auto const& gm = gmIt->second;
+
+	if (!gm.tauntsOrdered) {
+		for (auto const& taunt : gm.taunts) {
+			if (settings::isTauntEnabled(pack.id, gamemode, taunt.anim.id)) result.push_back(&taunt);
 		}
-		return false;
+		return result;
 	}
 
-	SpritePack const* activePackFor(bool platformer, std::string const& gamemode) {
-		for (auto const& pack : PackManager::get().getLoadedPacks()) {
-			if (!settings::isPackActive(pack.id, platformer)) continue;
-
-			auto gmIt = pack.gamemodes.find(gamemode);
-			if (gmIt == pack.gamemodes.end() || (gmIt->second.events.empty() && gmIt->second.taunts.empty())) continue;
-
-			if (!settings::isGamemodeEnabled(pack.id, gamemode)) continue;
-
-			return &pack;
+	for (size_t i = 0; i < gm.taunts.size();) {
+		size_t j = i + 1;
+		if (gm.taunts[i].order.has_value()) {
+			while (j < gm.taunts.size() && gm.taunts[j].order == gm.taunts[i].order) ++j;
 		}
-		return nullptr;
-	}
 
-	AnimEvent const* findEnabledEvent(SpritePack const& pack, std::string const& gamemode, std::string const& triggerName) {
-		if (!settings::isGamemodeEnabled(pack.id, gamemode)) return nullptr;
-		for (auto const* anim : pack.findEvents(gamemode, triggerName)) {
-			if (settings::isEventEnabled(pack.id, gamemode, anim->id)) return anim;
+		Taunt const* winner = nullptr;
+		for (size_t k = i; k < j; ++k) {
+			auto const& candidate = gm.taunts[k];
+			if (!settings::isTauntEnabled(pack.id, gamemode, candidate.anim.id)) continue;
+			if (!winner || candidate.declIndex > winner->declIndex) winner = &candidate;
 		}
-		return nullptr;
+		if (winner) result.push_back(winner);
+		i = j;
 	}
+	return result;
 }
 
 class $modify(PSPlayerObject, PlayerObject) {
@@ -292,7 +321,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 		if (!pack) return false;
 
 		auto const& gm = pack->gamemodes.at(gamemode);
-		auto const& taunts = gm.taunts;
+		auto const taunts = enabledTaunts(*pack, gamemode);
 		if (taunts.empty()) return false;
 
 		auto const key = fmt::format("{}/{}", pack->id, gamemode);
@@ -315,7 +344,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 		} else if (taunts.size() > 1) {
 			static std::mt19937 gen{ std::random_device{}() };
 			auto lastIt = m_fields->tauntLast.find(key);
-			if (lastIt == m_fields->tauntLast.end()) {
+			if (lastIt == m_fields->tauntLast.end() || lastIt->second >= taunts.size()) {
 				index = std::uniform_int_distribution<size_t>(0, taunts.size() - 1)(gen);
 			} else {
 				index = std::uniform_int_distribution<size_t>(0, taunts.size() - 2)(gen);
@@ -323,7 +352,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 			}
 		}
 
-		auto const& taunt = taunts[index];
+		auto const& taunt = *taunts[index];
 
 		if (!taunt.allowInMotion && !isStandingStill()) return false;
 

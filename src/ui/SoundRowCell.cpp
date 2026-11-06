@@ -2,19 +2,25 @@
 
 namespace playersprites {
 
-	namespace {
-		constexpr float LISTEN_AREA = 30.f;
-		constexpr float TOGGLE_AREA = 40.f;
+	// -----------------------------------------
+	// HELPERS START
+	// -----------------------------------------
 
-		std::string joinNames(std::vector<std::string> const& names) {
-			std::string joined;
-			for (size_t i = 0; i < names.size(); ++i) {
-				if (i > 0) joined += ", ";
-				joined += names[i];
-			}
-			return joined;
+	constexpr float LISTEN_AREA = 30.f;
+	constexpr float TOGGLE_AREA = 40.f;
+
+	std::string joinNames(std::vector<std::string> const& names) {
+		std::string joined;
+		for (size_t i = 0; i < names.size(); ++i) {
+			if (i > 0) joined += ", ";
+			joined += names[i];
 		}
+		return joined;
 	}
+
+	// -----------------------------------------
+	// HELPERS END
+	// -----------------------------------------
 
 	SoundRowCell* SoundRowCell::createHeader(std::string const& gamemode, bool even) {
 		auto ret = new SoundRowCell();

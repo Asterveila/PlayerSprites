@@ -17,6 +17,11 @@ namespace playersprites::settings {
 	bool isEventEnabled(std::string const& packId, std::string const& gamemode, std::string const& eventId);
 	void setEventEnabled(std::string const& packId, std::string const& gamemode, std::string const& eventId, bool enabled);
 
+	bool isTauntEnabled(std::string const& packId, std::string const& gamemode, std::string const& tauntId);
+	void setTauntEnabled(std::string const& packId, std::string const& gamemode, std::string const& tauntId, bool enabled);
+
+	void clearPack(std::string const& packId);
+
 	// sfx
 	bool isSfxEnabled(std::string const& packId);
 	void setSfxEnabled(std::string const& packId, bool enabled);

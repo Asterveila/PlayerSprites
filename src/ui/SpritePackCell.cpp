@@ -3,38 +3,42 @@
 
 namespace playersprites {
 
-	namespace {
+	// -----------------------------------------
+	// HELPERS START
+	// -----------------------------------------
 
-		constexpr float CONTROLS_AREA = 90.f;
+	constexpr float CONTROLS_AREA = 130.f;
 
-		std::string buildCreditsLine(SpritePackMeta const& meta) {
-			if (meta.credits.empty()) {
-				return fmt::format("By {}", meta.author);
-			}
-			std::string joined;
-			for (size_t i = 0; i < meta.credits.size(); ++i) {
-				if (i > 0) joined += ", ";
-				joined += meta.credits[i];
-			}
-			return fmt::format("By {} - Assets by {}", meta.author, joined);
+	std::string buildCreditsLine(SpritePackMeta const& meta) {
+		if (meta.credits.empty()) {
+			return fmt::format("By {}", meta.author);
 		}
-
-		CCSprite* loadPackIcon(fs::path const& rootPath) {
-			// @geode-ignore(unknown-resource)
-			auto path = rootPath / "pack.png";
-			if (!fs::exists(path)) return CCSprite::create();
-
-			auto* texture = CCTextureCache::sharedTextureCache()->addImage(utils::string::pathToString(path).c_str(), false);
-			if (!texture) return CCSprite::create();
-
-			return CCSprite::createWithTexture(texture);
+		std::string joined;
+		for (size_t i = 0; i < meta.credits.size(); ++i) {
+			if (i > 0) joined += ", ";
+			joined += meta.credits[i];
 		}
-
+		return fmt::format("By {} - Assets by {}", meta.author, joined);
 	}
 
-	SpritePackCell* SpritePackCell::createForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler infoSelector, SEL_MenuHandler settingsSelector) {
-		auto ret = new SpritePackCell();
-		if (ret->initForPack(pack, even, target, toggleSelector, infoSelector, settingsSelector)) {
+	CCSprite* loadPackIcon(fs::path const& rootPath) {
+		// @geode-ignore(unknown-resource)
+		auto path = rootPath / "pack.png";
+		if (!fs::exists(path)) return CCSprite::create();
+
+		auto* texture = CCTextureCache::sharedTextureCache()->addImage(utils::string::pathToString(path).c_str(), false);
+		if (!texture) return CCSprite::create();
+
+		return CCSprite::createWithTexture(texture);
+	}
+
+	// -----------------------------------------
+	// HELPERS END
+	// -----------------------------------------
+
+	SpritePackCell* SpritePackCell::createForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler infoSelector, SEL_MenuHandler settingsSelector, SEL_MenuHandler moveUpSelector, SEL_MenuHandler moveDownSelector, bool canMoveUp, bool canMoveDown) {
+			auto ret = new SpritePackCell();
+			if (ret->initForPack(pack, even, target, toggleSelector, infoSelector, settingsSelector, moveUpSelector, moveDownSelector, canMoveUp, canMoveDown)) {
 			ret->autorelease();
 			return ret;
 		}
@@ -52,7 +56,7 @@ namespace playersprites {
 		return nullptr;
 	}
 
-	bool SpritePackCell::initForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler infoSelector, SEL_MenuHandler settingsSelector) {
+	bool SpritePackCell::initForPack(SpritePack const& pack, bool even, CCObject* target, SEL_MenuHandler toggleSelector, SEL_MenuHandler infoSelector, SEL_MenuHandler settingsSelector, SEL_MenuHandler moveUpSelector, SEL_MenuHandler moveDownSelector, bool canMoveUp, bool canMoveDown) {
 		if (!CCLayer::init()) return false;
 
 		CCSize size = { WIDTH, HEIGHT };
@@ -112,7 +116,7 @@ namespace playersprites {
 		m_packToggle->setScale(0.7f);
 		m_packToggle->toggle(settings::isPackEnabled(pack.id));
 		m_packToggle->setUserObject("pack-id"_spr, CCString::create(pack.id));
-		m_packToggle->setPosition({ size.width - 24.f - 38.f, size.height / 2.f });
+		m_packToggle->setPosition({ size.width - 24.f - 38.f - 38.f, size.height / 2.f });
 		m_packToggle->setID(fmt::format("{}-toggle", pack.id));
 		menu->addChild(m_packToggle);
 
@@ -120,9 +124,32 @@ namespace playersprites {
 		gearSprite->setScale(0.7f);
 		m_settingsButton = CCMenuItemSpriteExtra::create(gearSprite, target, settingsSelector);
 		m_settingsButton->setUserObject("pack-id"_spr, CCString::create(pack.id));
-		m_settingsButton->setPosition({ size.width - 24.f, size.height / 2.f });
+		m_settingsButton->setPosition({ size.width - 24.f - 38.f, size.height / 2.f });
 		m_settingsButton->setID(fmt::format("{}-settings-btn", pack.id));
 		menu->addChild(m_settingsButton);
+
+		auto reorderMenu = CCMenu::create();
+		reorderMenu->setContentSize({ 24.f, size.height });
+		reorderMenu->setAnchorPoint({ 0.5f, 0.5f });
+		reorderMenu->ignoreAnchorPointForPosition(false);
+		reorderMenu->setPosition({ size.width - 24.f, size.height / 2.f });
+		reorderMenu->setID(fmt::format("{}-reorder-menu", pack.id));
+		this->addChild(reorderMenu);
+
+		auto makeArrow = [&](char const* frame, SEL_MenuHandler selector, bool enabled, float y, char const* idSuffix) {
+			auto spr = CCSprite::createWithSpriteFrameName(frame);
+			spr->setScale(0.85f);
+			if (!enabled) spr->setColor({ 90, 90, 90 });
+			auto btn = CCMenuItemSpriteExtra::create(spr, target, selector);
+			btn->setUserObject("pack-id"_spr, CCString::create(pack.id));
+			btn->setEnabled(enabled);
+			btn->setPosition({ 12.f, y });
+			btn->setID(fmt::format("{}-{}", pack.id, idSuffix));
+			reorderMenu->addChild(btn);
+			return btn;
+		};
+		m_moveUpButton = makeArrow("edit_upBtn_001.png", moveUpSelector, canMoveUp, size.height / 2.f + 11.f, "move-up-btn");
+		m_moveDownButton = makeArrow("edit_downBtn_001.png", moveDownSelector, canMoveDown, size.height / 2.f - 11.f, "move-down-btn");
 
 		return true;
 	}

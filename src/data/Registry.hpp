@@ -22,6 +22,7 @@ namespace playersprites {
 
 		bool addPack(std::string const& id, bool top = false);
 		bool removePack(std::string const& id);
+		bool swapPacks(std::string const& a, std::string const& b);
 	};
 
 }

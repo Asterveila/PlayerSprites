@@ -23,6 +23,59 @@ namespace playersprites::UIUtils {
 		return node;
 	}
 
+	inline CCMenu* columnMenu(float gap = 4.f, AxisAlignment axisAlign = AxisAlignment::Center, AxisAlignment crossAlign = AxisAlignment::Center, bool growCross = false, const char* id = nullptr, float anchorX = 0.5f, float anchorY = 0.5f) {
+		auto menu = CCMenu::create();
+		menu->setContentSize({ 0.f, 0.f });
+		menu->setAnchorPoint({ anchorX, anchorY });
+		menu->setLayout(
+			ColumnLayout::create()
+				->setGap(gap)
+				->setAxisAlignment(axisAlign)
+				->setCrossAxisAlignment(crossAlign)
+				->setAutoScale(false)
+				->setAutoGrowAxis(true)
+				->setGrowCrossAxis(growCross)
+				->setAxisReverse(true)
+		);
+		if (id) menu->setID(id);
+		return menu;
+	}
+
+	inline CCMenu* rowMenu(float gap = 4.f, AxisAlignment axisAlign = AxisAlignment::Start, AxisAlignment crossAlign = AxisAlignment::Center, bool growCross = false, const char* id = nullptr, float anchorX = 0.5f, float anchorY = 0.5f) {
+		auto menu = CCMenu::create();
+		menu->setContentSize({ 0.f, 0.f });
+		menu->setAnchorPoint({ anchorX, anchorY });
+		menu->setLayout(
+			RowLayout::create()
+				->setGap(gap)
+				->setAxisAlignment(axisAlign)
+				->setCrossAxisAlignment(crossAlign)
+				->setAutoScale(false)
+				->setAutoGrowAxis(true)
+				->setGrowCrossAxis(growCross)
+		);
+		if (id) menu->setID(id);
+		return menu;
+	}
+
+	inline CCNode* column(float gap = 4.f, AxisAlignment axisAlign = AxisAlignment::Center, AxisAlignment crossAlign = AxisAlignment::Center, bool growCross = false, const char* id = nullptr) {
+		auto node = CCNode::create();
+		node->setContentSize({ 0.f, 0.f });
+		node->setAnchorPoint({ 0.5f, 0.5f });
+		node->setLayout(
+			ColumnLayout::create()
+				->setGap(gap)
+				->setAxisAlignment(axisAlign)
+				->setCrossAxisAlignment(crossAlign)
+				->setAutoScale(false)
+				->setAutoGrowAxis(true)
+				->setGrowCrossAxis(growCross)
+				->setAxisReverse(true)
+		);
+		if (id) node->setID(id);
+		return node;
+	}
+
 	struct TogglerRow {
 		CCMenu* container;
 		CCMenuItemToggler* toggler;
@@ -65,7 +118,7 @@ namespace playersprites::UIUtils {
 		CCMenuItemToggler* toggler;
 	};
 
-	inline VisualToggler visToggler(bool initialState, CCObject* target, SEL_MenuHandler selector, float togglerScale = 0.7f, const char* id = nullptr, const char* offSpr = "GJ_checkOff_001.png", const char* onSpr = "GJ_checkOn_001.png") {
+	inline VisualToggler visToggler(bool initialState, CCObject* target, SEL_MenuHandler selector, float togglerScale = 0.7f, const char* id = nullptr, CCSprite* offSpr = CCSprite::createWithSpriteFrameName("GJ_checkOff_001.png"), CCSprite* onSpr = CCSprite::createWithSpriteFrameName("GJ_checkOn_001.png")) {
 		auto menu = CCMenu::create();
 		menu->setLayout(
 			RowLayout::create()
@@ -77,10 +130,7 @@ namespace playersprites::UIUtils {
 				->setAutoGrowAxis(true)
 		);
 
-		auto offSprite = CCSprite::createWithSpriteFrameName(offSpr);
-		auto onSprite = CCSprite::createWithSpriteFrameName(onSpr);
-
-		auto toggler = CCMenuItemToggler::create(offSprite, onSprite, target, selector);
+		auto toggler = CCMenuItemToggler::create(offSpr, onSpr, target, selector);
 		toggler->setScale(togglerScale);
 		menu->addChild(toggler);
 		menu->updateLayout();
@@ -90,6 +140,16 @@ namespace playersprites::UIUtils {
 		if (id) menu->setID(id);
 
 		return { menu, toggler };
+	}
+
+	inline CCMenuItemToggler* rawVisToggler(bool initialState, CCObject* target, SEL_MenuHandler selector, float togglerScale = 0.7f, const char* id = nullptr, CCSprite* offSpr = CCSprite::createWithSpriteFrameName("GJ_checkOff_001.png"), CCSprite* onSpr = CCSprite::createWithSpriteFrameName("GJ_checkOn_001.png")) {
+		auto toggler = CCMenuItemToggler::create(offSpr, onSpr, target, selector);
+		toggler->setScale(togglerScale);
+		toggler->toggle(initialState);
+
+		if (id) toggler->setID(id);
+
+		return toggler;
 	}
 
 }

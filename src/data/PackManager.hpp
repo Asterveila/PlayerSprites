@@ -25,6 +25,9 @@ namespace playersprites {
 		std::vector<std::pair<std::string, std::string>> const& getLoadErrors() const { return m_loadErrors; }
 
 		SpritePack const* findPack(std::string const& id) const;
+
+		bool movePack(std::string const& id, int direction);
+		geode::Result<void, std::string> deletePack(std::string const& id);
 	};
 
 }

@@ -11,203 +11,207 @@ namespace playersprites {
 	using geode::Err;
 	using geode::Result;
 
-	namespace {
+	// -----------------------------------------
+	// HELPERS START
+	// -----------------------------------------
 
-		Result<std::string, std::string> requireString(matjson::Value const& json, std::string const& field, std::string const& ctx) {
-			auto const& val = json[field];
-			if (val.isNull()) {
-				return Err(fmt::format("{}: missing required field '{}'", ctx, field));
-			}
-			auto res = val.asString();
-			if (res.isErr()) {
-				return Err(fmt::format("{}: field '{}' must be a string", ctx, field));
-			}
-			return Ok(res.unwrap());
+	Result<std::string, std::string> requireString(matjson::Value const& json, std::string const& field, std::string const& ctx) {
+		auto const& val = json[field];
+		if (val.isNull()) {
+			return Err(fmt::format("{}: missing required field '{}'", ctx, field));
 		}
-
-		Result<int, std::string> requireInt(matjson::Value const& json, std::string const& field, std::string const& ctx) {
-			auto const& val = json[field];
-			if (val.isNull()) {
-				return Err(fmt::format("{}: missing required field '{}'", ctx, field));
-			}
-			auto res = val.asInt();
-			if (res.isErr()) {
-				return Err(fmt::format("{}: field '{}' must be an integer", ctx, field));
-			}
-			return Ok(static_cast<int>(res.unwrap()));
+		auto res = val.asString();
+		if (res.isErr()) {
+			return Err(fmt::format("{}: field '{}' must be a string", ctx, field));
 		}
-
-		Result<std::optional<float>, std::string> optionalFloat(matjson::Value const& json, std::string const& field, std::string const& ctx) {
-			auto const& val = json[field];
-			if (val.isNull()) {
-				return Ok(std::optional<float>(std::nullopt));
-			}
-			auto res = val.asDouble();
-			if (res.isErr()) {
-				return Err(fmt::format("{}: field '{}' must be a number", ctx, field));
-			}
-			return Ok(std::optional<float>(static_cast<float>(res.unwrap())));
-		}
-
-		Result<std::vector<std::string>, std::string> stringList(matjson::Value const& value, std::string const& what) {
-			std::vector<std::string> out;
-			if (value.isString()) {
-				out.push_back(value.asString().unwrap());
-			} else if (value.isArray()) {
-				for (auto const& item : value) {
-					auto strRes = item.asString();
-					if (strRes.isErr()) {
-						return Err(fmt::format("{}: every entry must be a string", what));
-					}
-					out.push_back(strRes.unwrap());
-				}
-			} else {
-				return Err(fmt::format("{}: expected a string or an array of strings", what));
-			}
-			return Ok(std::move(out));
-		}
-
-		Result<std::optional<fs::path>, std::string> resolveSoundFile(fs::path const& normalRoot, std::string const& rel, std::string const& ctx) {
-			fs::path relPath = rel;
-
-			auto ext = utils::string::pathToString(relPath.extension());
-			std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-			if (ext != ".ogg" && ext != ".wav") {
-				return Err(fmt::format("{}: '{}' isn't a supported format, only .ogg and .wav work", ctx, rel));
-			}
-
-			if (relPath.is_absolute() || relPath.has_root_name() || relPath.has_root_directory()) {
-				return Err(fmt::format("{}: '{}' has to be a path relative to the pack's folder", ctx, rel));
-			}
-
-			auto full = (normalRoot / relPath).lexically_normal();
-			auto fromRoot = full.lexically_relative(normalRoot);
-			if (fromRoot.empty() || *fromRoot.begin() == fs::path("..")) {
-				return Err(fmt::format("{}: '{}' points outside of the pack's folder", ctx, rel));
-			}
-
-			if (!fs::exists(full)) {
-				geode::log::warn("{}: missing file {}", ctx, utils::string::pathToString(full));
-				return Ok(std::optional<fs::path>{});
-			}
-			return Ok(std::optional<fs::path>{ std::move(full) });
-		}
-
-		bool optionalBool(matjson::Value const& json, std::string const& field, bool defaultValue) {
-			auto const& val = json[field];
-			if (val.isNull()) return defaultValue;
-			return val.asBool().unwrapOr(defaultValue);
-		}
-
-		Result<TintColour, std::string> parseTintColour(matjson::Value const& json, std::string const& ctx) {
-			TintColour tint;
-			auto const& val = json["tintColour"];
-			if (val.isNull()) return Ok(tint);
-
-			auto strRes = val.asString();
-			if (strRes.isErr()) {
-				return Err(fmt::format("{}: 'tintColour' must be a string (a hex colour, \"P1\", \"P2\" or \"Glow\")", ctx));
-			}
-			auto str = strRes.unwrap();
-
-			auto lower = str;
-			std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-			if (lower == "p1") { tint.source = TintSource::P1; return Ok(tint); }
-			if (lower == "p2") { tint.source = TintSource::P2; return Ok(tint); }
-			if (lower == "glow") { tint.source = TintSource::Glow; return Ok(tint); }
-
-			auto colourRes = geode::cocos::cc3bFromHexString(str, false);
-			if (colourRes.isErr()) {
-				return Err(fmt::format("{}: 'tintColour' '{}' isn't valid, use a hex colour like \"#FF8800\" or one of \"P1\", \"P2\", \"Glow\"", ctx, str));
-			}
-
-			auto colour = colourRes.unwrap();
-			tint.source = TintSource::Custom;
-			tint.r = colour.r;
-			tint.g = colour.g;
-			tint.b = colour.b;
-			return Ok(tint);
-		}
-
-		using RawEvents = std::unordered_map<std::string, std::unordered_map<std::string, matjson::Value>>;
-		using RawOrder = std::unordered_map<std::string, std::vector<std::string>>;
-
-		// i made the mimic
-		Result<matjson::Value, std::string> resolveMimic(RawEvents const& raw, std::string const& gamemode, std::string const& eventName, std::vector<std::string>& chain) {
-			auto const ownKey = fmt::format("{}/{}", gamemode, eventName);
-			auto const& eventJson = raw.at(gamemode).at(eventName);
-
-			if (!eventJson.isObject()) {
-				return Err(fmt::format("event '{}': expected an object", ownKey));
-			}
-
-			auto const& mimicVal = eventJson["mimic"];
-			if (mimicVal.isNull()) return Ok(eventJson);
-
-			if (std::find(chain.begin(), chain.end(), ownKey) != chain.end()) {
-				return Err(fmt::format("event '{}': 'mimic' chain loops back on itself", ownKey));
-			}
-
-			auto mimicRes = mimicVal.asString();
-			if (mimicRes.isErr()) {
-				return Err(fmt::format("event '{}': 'mimic' must be a string like \"Cube/EventId\"", ownKey));
-			}
-			auto target = mimicRes.unwrap();
-
-			auto slash = target.find('/');
-			if (slash == std::string::npos || slash == 0 || slash + 1 >= target.size()) {
-				return Err(fmt::format("event '{}': 'mimic' must look like \"Gamemode/EventId\", got '{}'", ownKey, target));
-			}
-			auto srcGamemode = target.substr(0, slash);
-			auto srcEvent = target.substr(slash + 1);
-
-			auto gmIt = raw.find(srcGamemode);
-			if (gmIt == raw.end() || gmIt->second.find(srcEvent) == gmIt->second.end()) {
-				return Err(fmt::format("event '{}': 'mimic' target '{}' doesn't exist in this pack", ownKey, target));
-			}
-
-			chain.push_back(ownKey);
-			auto baseRes = resolveMimic(raw, srcGamemode, srcEvent, chain);
-			chain.pop_back();
-			if (baseRes.isErr()) return Err(baseRes.unwrapErr());
-
-			auto merged = baseRes.unwrap();
-			for (auto const& [key, value] : eventJson) {
-				if (std::string(key) == "mimic") continue;
-				merged[std::string(key)] = value;
-			}
-			return Ok(std::move(merged));
-		}
-
-		Result<void, std::string> collectRaw(matjson::Value const& list, std::string const& key, RawEvents& out, RawOrder* order = nullptr) {
-			if (list.isNull()) return Ok();
-			if (!list.isArray()) {
-				return Err(fmt::format("spr-pack.json: '{}' must be an array", key));
-			}
-			for (auto const& block : list) {
-				if (!block.isObject()) {
-					return Err(fmt::format("spr-pack.json: each entry in '{}' must be an object keyed by gamemode", key));
-				}
-				for (auto const& [gamemodeName, gamemodeJson] : block) {
-					if (gamemodeName == "globalAttributes") {
-						return Err(fmt::format("spr-pack.json: 'globalAttributes' goes at the root of the file, not inside '{}'", key));
-					}
-					if (!gamemodeJson.isObject()) {
-						return Err(fmt::format("gamemode '{}': expected an object of {}", gamemodeName, key));
-					}
-					auto& gmRaw = out[gamemodeName];
-					for (auto const& [name, entryJson] : gamemodeJson) {
-						std::string nameStr = std::string(name);
-						bool isNew = gmRaw.find(nameStr) == gmRaw.end();
-						gmRaw[nameStr] = entryJson;
-						if (order && isNew) (*order)[std::string(gamemodeName)].push_back(nameStr);
-					}
-				}
-			}
-			return Ok();
-		}
-
+		return Ok(res.unwrap());
 	}
+
+	Result<int, std::string> requireInt(matjson::Value const& json, std::string const& field, std::string const& ctx) {
+		auto const& val = json[field];
+		if (val.isNull()) {
+			return Err(fmt::format("{}: missing required field '{}'", ctx, field));
+		}
+		auto res = val.asInt();
+		if (res.isErr()) {
+			return Err(fmt::format("{}: field '{}' must be an integer", ctx, field));
+		}
+		return Ok(static_cast<int>(res.unwrap()));
+	}
+
+	Result<std::optional<float>, std::string> optionalFloat(matjson::Value const& json, std::string const& field, std::string const& ctx) {
+		auto const& val = json[field];
+		if (val.isNull()) {
+			return Ok(std::optional<float>(std::nullopt));
+		}
+		auto res = val.asDouble();
+		if (res.isErr()) {
+			return Err(fmt::format("{}: field '{}' must be a number", ctx, field));
+		}
+		return Ok(std::optional<float>(static_cast<float>(res.unwrap())));
+	}
+
+	Result<std::vector<std::string>, std::string> stringList(matjson::Value const& value, std::string const& what) {
+		std::vector<std::string> out;
+		if (value.isString()) {
+			out.push_back(value.asString().unwrap());
+		} else if (value.isArray()) {
+			for (auto const& item : value) {
+				auto strRes = item.asString();
+				if (strRes.isErr()) {
+					return Err(fmt::format("{}: every entry must be a string", what));
+				}
+				out.push_back(strRes.unwrap());
+			}
+		} else {
+			return Err(fmt::format("{}: expected a string or an array of strings", what));
+		}
+		return Ok(std::move(out));
+	}
+
+	Result<std::optional<fs::path>, std::string> resolveSoundFile(fs::path const& normalRoot, std::string const& rel, std::string const& ctx) {
+		fs::path relPath = rel;
+
+		auto ext = utils::string::pathToString(relPath.extension());
+		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		if (ext != ".ogg" && ext != ".wav") {
+			return Err(fmt::format("{}: '{}' isn't a supported format, only .ogg and .wav work", ctx, rel));
+		}
+
+		if (relPath.is_absolute() || relPath.has_root_name() || relPath.has_root_directory()) {
+			return Err(fmt::format("{}: '{}' has to be a path relative to the pack's folder", ctx, rel));
+		}
+
+		auto full = (normalRoot / relPath).lexically_normal();
+		auto fromRoot = full.lexically_relative(normalRoot);
+		if (fromRoot.empty() || *fromRoot.begin() == fs::path("..")) {
+			return Err(fmt::format("{}: '{}' points outside of the pack's folder", ctx, rel));
+		}
+
+		if (!fs::exists(full)) {
+			geode::log::warn("{}: missing file {}", ctx, utils::string::pathToString(full));
+			return Ok(std::optional<fs::path>{});
+		}
+		return Ok(std::optional<fs::path>{ std::move(full) });
+	}
+
+	bool optionalBool(matjson::Value const& json, std::string const& field, bool defaultValue) {
+		auto const& val = json[field];
+		if (val.isNull()) return defaultValue;
+		return val.asBool().unwrapOr(defaultValue);
+	}
+
+	Result<TintColour, std::string> parseTintColour(matjson::Value const& json, std::string const& ctx) {
+		TintColour tint;
+		auto const& val = json["tintColour"];
+		if (val.isNull()) return Ok(tint);
+
+		auto strRes = val.asString();
+		if (strRes.isErr()) {
+			return Err(fmt::format("{}: 'tintColour' must be a string (a hex colour, \"P1\", \"P2\" or \"Glow\")", ctx));
+		}
+		auto str = strRes.unwrap();
+
+		auto lower = str;
+		std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		if (lower == "p1") { tint.source = TintSource::P1; return Ok(tint); }
+		if (lower == "p2") { tint.source = TintSource::P2; return Ok(tint); }
+		if (lower == "glow") { tint.source = TintSource::Glow; return Ok(tint); }
+
+		auto colourRes = geode::cocos::cc3bFromHexString(str, false);
+		if (colourRes.isErr()) {
+			return Err(fmt::format("{}: 'tintColour' '{}' isn't valid, use a hex colour like \"#FF8800\" or one of \"P1\", \"P2\", \"Glow\"", ctx, str));
+		}
+
+		auto colour = colourRes.unwrap();
+		tint.source = TintSource::Custom;
+		tint.r = colour.r;
+		tint.g = colour.g;
+		tint.b = colour.b;
+		return Ok(tint);
+	}
+
+	using RawEvents = std::unordered_map<std::string, std::unordered_map<std::string, matjson::Value>>;
+	using RawOrder = std::unordered_map<std::string, std::vector<std::string>>;
+
+	// i made the mimic
+	Result<matjson::Value, std::string> resolveMimic(RawEvents const& raw, std::string const& gamemode, std::string const& eventName, std::vector<std::string>& chain) {
+		auto const ownKey = fmt::format("{}/{}", gamemode, eventName);
+		auto const& eventJson = raw.at(gamemode).at(eventName);
+
+		if (!eventJson.isObject()) {
+			return Err(fmt::format("event '{}': expected an object", ownKey));
+		}
+
+		auto const& mimicVal = eventJson["mimic"];
+		if (mimicVal.isNull()) return Ok(eventJson);
+
+		if (std::find(chain.begin(), chain.end(), ownKey) != chain.end()) {
+			return Err(fmt::format("event '{}': 'mimic' chain loops back on itself", ownKey));
+		}
+
+		auto mimicRes = mimicVal.asString();
+		if (mimicRes.isErr()) {
+			return Err(fmt::format("event '{}': 'mimic' must be a string like \"Cube/EventId\"", ownKey));
+		}
+		auto target = mimicRes.unwrap();
+
+		auto slash = target.find('/');
+		if (slash == std::string::npos || slash == 0 || slash + 1 >= target.size()) {
+			return Err(fmt::format("event '{}': 'mimic' must look like \"Gamemode/EventId\", got '{}'", ownKey, target));
+		}
+		auto srcGamemode = target.substr(0, slash);
+		auto srcEvent = target.substr(slash + 1);
+
+		auto gmIt = raw.find(srcGamemode);
+		if (gmIt == raw.end() || gmIt->second.find(srcEvent) == gmIt->second.end()) {
+			return Err(fmt::format("event '{}': 'mimic' target '{}' doesn't exist in this pack", ownKey, target));
+		}
+
+		chain.push_back(ownKey);
+		auto baseRes = resolveMimic(raw, srcGamemode, srcEvent, chain);
+		chain.pop_back();
+		if (baseRes.isErr()) return Err(baseRes.unwrapErr());
+
+		auto merged = baseRes.unwrap();
+		for (auto const& [key, value] : eventJson) {
+			if (std::string(key) == "mimic") continue;
+			merged[std::string(key)] = value;
+		}
+		return Ok(std::move(merged));
+	}
+
+	Result<void, std::string> collectRaw(matjson::Value const& list, std::string const& key, RawEvents& out, RawOrder* order = nullptr) {
+		if (list.isNull()) return Ok();
+		if (!list.isArray()) {
+			return Err(fmt::format("spr-pack.json: '{}' must be an array", key));
+		}
+		for (auto const& block : list) {
+			if (!block.isObject()) {
+				return Err(fmt::format("spr-pack.json: each entry in '{}' must be an object keyed by gamemode", key));
+			}
+			for (auto const& [gamemodeName, gamemodeJson] : block) {
+				if (gamemodeName == "globalAttributes") {
+					return Err(fmt::format("spr-pack.json: 'globalAttributes' goes at the root of the file, not inside '{}'", key));
+				}
+				if (!gamemodeJson.isObject()) {
+					return Err(fmt::format("gamemode '{}': expected an object of {}", gamemodeName, key));
+				}
+				auto& gmRaw = out[gamemodeName];
+				for (auto const& [name, entryJson] : gamemodeJson) {
+					std::string nameStr = std::string(name);
+					bool isNew = gmRaw.find(nameStr) == gmRaw.end();
+					gmRaw[nameStr] = entryJson;
+					if (order && isNew) (*order)[std::string(gamemodeName)].push_back(nameStr);
+				}
+			}
+		}
+		return Ok();
+	}
+
+	// -----------------------------------------
+	// HELPERS END
+	// -----------------------------------------
 
 	float AnimEvent::rollFrameTime() const {
 		if (frameTime.has_value()) {
@@ -598,7 +602,8 @@ namespace playersprites {
 		if (auto res = collectRaw(json["events"], "events", rawEvents, &eventOrder); res.isErr()) return Err(res.unwrapErr());
 
 		RawEvents rawTaunts;
-		if (auto res = collectRaw(json["taunts"], "taunts", rawTaunts); res.isErr()) return Err(res.unwrapErr());
+		RawOrder tauntOrder;
+		if (auto res = collectRaw(json["taunts"], "taunts", rawTaunts, &tauntOrder); res.isErr()) return Err(res.unwrapErr());
 
 		// it was difficult to parse the pieces together
 		for (auto const& [gamemodeName, gmRaw] : rawEvents) {
@@ -655,6 +660,8 @@ namespace playersprites {
 				Taunt taunt;
 				taunt.anim = animRes.unwrap();
 				taunt.anim.id = tauntName;
+				auto& declared = tauntOrder[gamemodeName];
+				taunt.declIndex = static_cast<size_t>(std::find(declared.begin(), declared.end(), tauntName) - declared.begin());
 
 				if (optionalBool(tauntJson, "loopAnim", false)) {
 					geode::log::warn("{}: taunts can't loop, no need for 'loopAnim'", ctx);

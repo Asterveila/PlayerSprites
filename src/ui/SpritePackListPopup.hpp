@@ -14,7 +14,7 @@ namespace playersprites {
 		ScrollLayer* m_packScrollLayer = nullptr;
 
 		bool init() override;
-		void buildList();
+		void buildList(bool keepScroll = false);
 
 		geode::async::TaskHolder<geode::Result<std::optional<std::filesystem::path>>> m_importListener;
 
@@ -23,6 +23,8 @@ namespace playersprites {
 		void onTogglePack(CCObject* sender);
 		void onPackInfo(CCObject* sender);
 		void onPackSettings(CCObject* sender);
+		void onMovePackUp(CCObject* sender);
+		void onMovePackDown(CCObject* sender);
 		void onOpenFolder(CCObject* sender);
 		void onModSettings(CCObject* sender);
 

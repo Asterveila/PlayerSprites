@@ -5,37 +5,41 @@ namespace playersprites {
 
 	using namespace geode::prelude;
 
-	namespace {
+	// -----------------------------------------
+	// HELPERS START
+	// -----------------------------------------
 
-		std::string paddedFrameIndex(int index, int frameCount) {
-			int width = 2;
-			int maxIndexDigits = static_cast<int>(std::to_string(frameCount).size());
-			if (maxIndexDigits > width) width = maxIndexDigits;
+	std::string paddedFrameIndex(int index, int frameCount) {
+		int width = 2;
+		int maxIndexDigits = static_cast<int>(std::to_string(frameCount).size());
+		if (maxIndexDigits > width) width = maxIndexDigits;
 
-			std::string num = std::to_string(index);
-			if (static_cast<int>(num.size()) < width) {
-				num = std::string(width - num.size(), '0') + num;
-			}
-			return num;
+		std::string num = std::to_string(index);
+		if (static_cast<int>(num.size()) < width) {
+			num = std::string(width - num.size(), '0') + num;
 		}
-
-		bool isStateAnim(AnimEvent const& anim) {
-			if (anim.triggerOn.empty()) return anim.id == "Mod:Update" || anim.id == "Mod:Idle";
-			for (auto const& trigger : anim.triggerOn) {
-				if (trigger == "Mod:Update" || trigger == "Mod:Idle") return true;
-			}
-			return false;
-		}
-
-		void applyTextureMode(CCTexture2D* texture, bool pixelMode) {
-			if (pixelMode) {
-				texture->setAliasTexParameters();
-			} else {
-				texture->setAntiAliasTexParameters();
-			}
-		}
-
+		return num;
 	}
+
+	bool isStateAnim(AnimEvent const& anim) {
+		if (anim.triggerOn.empty()) return anim.id == "Mod:Update" || anim.id == "Mod:Idle";
+		for (auto const& trigger : anim.triggerOn) {
+			if (trigger == "Mod:Update" || trigger == "Mod:Idle") return true;
+		}
+		return false;
+	}
+
+	void applyTextureMode(CCTexture2D* texture, bool pixelMode) {
+		if (pixelMode) {
+			texture->setAliasTexParameters();
+		} else {
+			texture->setAntiAliasTexParameters();
+		}
+	}
+
+	// -----------------------------------------
+	// HELPERS END
+	// -----------------------------------------
 
 	PlayerSprite* PlayerSprite::create() {
 		auto ret = new PlayerSprite();

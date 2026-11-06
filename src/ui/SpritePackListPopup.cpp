@@ -17,7 +17,7 @@ namespace playersprites {
 	}
 
 	bool SpritePackListPopup::init() {
-		if (!Popup::init(460.f, 280.f, "hueShiftedSquare.png"_spr)) return false;
+		if (!Popup::init(500.f, 280.f, "mainSquare.png"_spr)) return false;
 
 		this->setTitle("Sprite Packs");
 
@@ -91,7 +91,8 @@ namespace playersprites {
 		return true;
 	}
 
-	void SpritePackListPopup::buildList() {
+	void SpritePackListPopup::buildList(bool keepScroll) {
+		float oldY = m_packScrollLayer->m_contentLayer->getPositionY();
 		m_packScrollLayer->m_contentLayer->removeAllChildren();
 
 		auto& mgr = PackManager::get();
@@ -101,12 +102,15 @@ namespace playersprites {
 		std::vector<CCLayer*> cells;
 		cells.reserve(loaded.size() + errors.size());
 
-		for (auto const& pack : loaded) {
+		for (size_t i = 0; i < loaded.size(); i++) {
 			cells.push_back(SpritePackCell::createForPack(
-				pack, cells.size() % 2 == 0, this,
+				loaded[i], cells.size() % 2 == 0, this,
 				menu_selector(SpritePackListPopup::onTogglePack),
 				menu_selector(SpritePackListPopup::onPackInfo),
-				menu_selector(SpritePackListPopup::onPackSettings)
+				menu_selector(SpritePackListPopup::onPackSettings),
+				menu_selector(SpritePackListPopup::onMovePackUp),
+				menu_selector(SpritePackListPopup::onMovePackDown),
+				i > 0, i + 1 < loaded.size()
 			));
 		}
 		for (auto const& [id, error] : errors) {
@@ -123,6 +127,8 @@ namespace playersprites {
 			SpritePackCell::HEIGHT * static_cast<float>(std::max<size_t>(cells.size(), 1))
 		});
 		m_packScrollLayer->moveToTop();
+
+		if (keepScroll) m_packScrollLayer->m_contentLayer->setPositionY(oldY);
 	}
 
 	void SpritePackListPopup::onReload(CCObject*) {
@@ -185,7 +191,31 @@ namespace playersprites {
 		if (!idObj) return;
 		std::string id = idObj->getCString();
 
-		SpritePackSettingsPopup::create(id)->show();
+		auto popup = SpritePackSettingsPopup::create(id);
+		popup->setOnPackDeleted([this]() { this->buildList(); });
+		popup->show();
+	}
+
+	void SpritePackListPopup::onMovePackUp(CCObject* sender) {
+		auto* btn = static_cast<CCMenuItemSpriteExtra*>(sender);
+		auto* idObj = static_cast<CCString*>(btn->getUserObject("pack-id"_spr));
+		if (!idObj) return;
+		if (!PackManager::get().movePack(idObj->getCString(), -1)) return;
+
+		geode::queueInMainThread([self = geode::Ref<SpritePackListPopup>(this)] {
+			self->buildList(true);
+		});
+	}
+
+	void SpritePackListPopup::onMovePackDown(CCObject* sender) {
+		auto* btn = static_cast<CCMenuItemSpriteExtra*>(sender);
+		auto* idObj = static_cast<CCString*>(btn->getUserObject("pack-id"_spr));
+		if (!idObj) return;
+		if (!PackManager::get().movePack(idObj->getCString(), 1)) return;
+
+		geode::queueInMainThread([self = geode::Ref<SpritePackListPopup>(this)] {
+			self->buildList(true);
+		});
 	}
 
 	void SpritePackListPopup::onOpenFolder(CCObject *sender) {
