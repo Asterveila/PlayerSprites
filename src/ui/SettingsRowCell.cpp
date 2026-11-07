@@ -70,10 +70,8 @@ namespace playersprites {
 		CCSize size = { WIDTH, HEADER_HEIGHT };
 		this->setContentSize(size);
 
-		m_background = CCLayerColor::create();
+		m_background = CCLayerGradient::create({0, 0, 0, 128}, {0, 0, 0, 48}, {1.f, 0.f});
 		m_background->setContentSize(size);
-		m_background->setOpacity(even ? 50 : 25);
-		m_background->setColor({ 0, 0, 0 });
 		this->addChild(m_background, -1);
 
 		auto label = CCLabelBMFont::create(fmt::format("{} {}", gamemode, suffix).c_str(), "goldFont.fnt");
@@ -95,8 +93,8 @@ namespace playersprites {
 
 		m_background = CCLayerColor::create();
 		m_background->setContentSize(size);
-		m_background->setOpacity(even ? 50 : 25);
-		m_background->setColor({ 40, 60, 90 });
+		m_background->setOpacity(even ? 48 : 24);
+		m_background->setColor({ 0, 0, 0 });
 		this->addChild(m_background, -1);
 
 		this->addPreview(pack, anim);
@@ -130,8 +128,8 @@ namespace playersprites {
 
 		m_background = CCLayerColor::create();
 		m_background->setContentSize(size);
-		m_background->setOpacity(even ? 50 : 25);
-		m_background->setColor({ 70, 45, 95 });
+		m_background->setOpacity(even ? 48 : 24);
+		m_background->setColor({ 0, 0, 0 });
 		this->addChild(m_background, -1);
 
 		this->addPreview(pack, taunt.anim);

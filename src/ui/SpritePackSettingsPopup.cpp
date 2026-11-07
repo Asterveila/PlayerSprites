@@ -87,10 +87,10 @@ namespace playersprites {
 
 			float btnScales = 0.4f;
 			float btnHeights = 25.f;
-			auto eventsOff = ButtonSprite::create("Events", 0.f, false, "bigFont.fnt", "GJ_button_04.png", btnHeights, btnScales);
-			auto eventsOn = ButtonSprite::create("Events", 0.f, false, "bigFont.fnt", "GJ_button_01.png", btnHeights, btnScales);
-			auto tauntsOff = ButtonSprite::create("Taunts", 0.f, false, "bigFont.fnt", "GJ_button_04.png", btnHeights, btnScales);
-			auto tauntsOn = ButtonSprite::create("Taunts", 0.f, false, "bigFont.fnt", "GJ_button_01.png", btnHeights, btnScales);
+			auto eventsOff = ButtonSprite::create("Events", 0.f, false, "bigFont.fnt", "inactiveButton.png"_spr, btnHeights, btnScales);
+			auto eventsOn = ButtonSprite::create("Events", 0.f, false, "bigFont.fnt", "activeButton.png"_spr, btnHeights, btnScales);
+			auto tauntsOff = ButtonSprite::create("Taunts", 0.f, false, "bigFont.fnt", "inactiveButton.png"_spr, btnHeights, btnScales);
+			auto tauntsOn = ButtonSprite::create("Taunts", 0.f, false, "bigFont.fnt", "activeButton.png"_spr, btnHeights, btnScales);
 
 			auto eventsBtn = UIUtils::rawVisToggler(
 				true, this, menu_selector(SpritePackSettingsPopup::onShowEvents),
