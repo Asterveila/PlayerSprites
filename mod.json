@@ -31,6 +31,21 @@
 			"description": "Defines the key to use for the **'Taunt'** function. Plays one of your active Sprite Pack's taunt animations, if there's any for your current gamemode.",
 			"category": "gameplay",
 			"default": "T"
+		},
+		"enable-button": {
+			"type": "bool",
+			"name": "Enable Taunt Button",
+			"default": false,
+			"description": "Enables a button to Taunt with by pressing it, instead of using the Keybind. Mainly intended for Mobile users, obviously."
+		},
+		"button-pos": {
+			"type": "string",
+			"name": "Manual Button Position",
+			"description": "Controls where the Manual Trigger Button appears on screen. \n- Bottom Left: Bottom Left Corner \n- Bottom Right: Bottom Right Corner \n- Top Left: Top Left Corner \nTop Right is not available due to very easily conflicting with the Pause button, sorry.",
+			"default": "Middle Right",
+			"one-of": ["Bottom Left", "Bottom Right", "Middle Right", "Top Left"],
+			"enable-if": "enable-button",
+			"enable-if-description": "Requires Manual Trigger Button to be enabled!"
 		}
 	},
 	"resources": {

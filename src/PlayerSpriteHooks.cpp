@@ -12,6 +12,24 @@
 using namespace geode::prelude;
 using namespace playersprites;
 
+$on_mod(Loaded) {
+	#ifndef GEODE_IS_DESKTOP
+
+	if (!Mod::get()->setSavedValue("enabledButtonForMobile", true)) {
+		Mod::get()->setSettingValue<bool>("enable-button", true);
+	}
+
+	#endif
+	
+}
+
+struct ButtonPositionData {
+	float xPos;
+	float yPos;
+	float xAnchor;
+	float yAnchor;
+};
+
 bool anyPackActive(bool platformer) {
 	for (auto const& pack : PackManager::get().getLoadedPacks()) {
 		if (settings::isPackActive(pack.id, platformer)) return true;
@@ -306,7 +324,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 	bool isStandingStill() { return m_isPlatformer && m_holdingLeft == m_holdingRight; }
 
-	bool runTaunt(std::unordered_set<std::string>& playedSounds) {
+	bool runTaunt(std::unordered_set<std::string>& playedSounds, CCObject* sender) {
 		auto* sprite = m_fields->modSprite;
 		if (!sprite || m_isDead || m_fields->levelComplete) return false;
 
@@ -501,6 +519,55 @@ class $modify(PSGhostTrailEffect, GhostTrailEffect) {
 };
 
 class $modify(PSPlayLayer, PlayLayer) {
+	ButtonPositionData getButtonPosData(std::string chosenSetting) {
+		ButtonPositionData data;
+		float safeZone = 10.f;
+
+		// log::info("Chosen Button Position: {}", chosenSetting);
+
+		if (chosenSetting == "Top Left") {
+			data.xPos = safeZone;
+			data.yPos = CCDirector::sharedDirector()->getWinSize().height - safeZone;
+			data.xAnchor = 0.f;
+			data.yAnchor = 1.f;
+		} else if (chosenSetting == "Bottom Left") {
+			data.xPos = safeZone;
+			data.yPos = safeZone;
+			data.xAnchor = 0.f;
+			data.yAnchor = 0.f;
+		} else if (chosenSetting == "Bottom Right") {
+			data.xPos = CCDirector::sharedDirector()->getWinSize().width - safeZone;
+			data.yPos = safeZone;
+			data.xAnchor = 1.f;
+			data.yAnchor = 0.f;
+		} else if (chosenSetting == "Middle Right") {
+			data.xPos = CCDirector::sharedDirector()->getWinSize().width - safeZone;
+			data.yPos = CCDirector::sharedDirector()->getWinSize().height / 2.f;
+			data.xAnchor = 1.f;
+			data.yAnchor = 0.5f;
+		} else {
+			// default to middle right cuz that's the better pos
+			data.xPos = CCDirector::sharedDirector()->getWinSize().width - safeZone;
+			data.yPos = CCDirector::sharedDirector()->getWinSize().height / 2.f;
+			data.xAnchor = 1.f;
+			data.yAnchor = 0.5f;
+		}
+
+		return data;
+	}
+
+	void theFunctionThatJustCallsTheTaunt(CCObject* sender) {
+		std::vector<PlayerObject*> players = { m_player1 };
+		if (m_gameState.m_isDualMode) players.push_back(m_player2);
+
+		bool tauntStarted = false;
+		std::unordered_set<std::string> playedSounds;
+		for (auto* player : players) {
+			if (!player) continue;
+			if (static_cast<PSPlayerObject*>(player)->runTaunt(playedSounds, sender)) tauntStarted = true;
+		}
+	}
+
 	void setupHasCompleted() {
 		PlayLayer::setupHasCompleted();
 
@@ -516,10 +583,36 @@ class $modify(PSPlayLayer, PlayLayer) {
 				std::unordered_set<std::string> playedSounds;
 				for (auto* player : players) {
 					if (!player) continue;
-					if (static_cast<PSPlayerObject*>(player)->runTaunt(playedSounds)) tauntStarted = true;
+					if (static_cast<PSPlayerObject*>(player)->runTaunt(playedSounds, nullptr)) tauntStarted = true;
 				}
 				return tauntStarted;
 			}
 		);
+
+		if (Mod::get()->getSettingValue<bool>("enable-button")) {
+			ButtonPositionData btnPosData = getButtonPosData(Mod::get()->getSettingValue<std::string>("button-pos"));
+			std::unordered_set<std::string> playedSounds;
+
+			auto btnSpr = CCSprite::createWithSpriteFrameName("tauntBtn.png"_spr);
+			btnSpr->setOpacity(75);
+
+			auto btn = CCMenuItemSpriteExtra::create(
+				btnSpr, 
+				this, 
+				menu_selector(PSPlayLayer::theFunctionThatJustCallsTheTaunt)
+			);
+
+			auto menu = CCMenu::create();
+			menu->setContentSize(btnSpr->getContentSize());
+			menu->setPosition({btnPosData.xPos, btnPosData.yPos});
+			menu->setAnchorPoint({btnPosData.xAnchor, btnPosData.yAnchor});
+			menu->ignoreAnchorPointForPosition(false);
+			menu->setID("taunt-button"_spr);
+			menu->addChild(btn);
+			
+			btn->setPosition({menu->getContentSize().width / 2.f, menu->getContentSize().height / 2.f});
+
+			m_uiLayer->addChild(menu);
+		}
 	}
 };
