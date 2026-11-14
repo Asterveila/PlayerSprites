@@ -212,7 +212,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 			this->setRotation(0.f);
 
 			// im just gonna assume the spider behaves  the same. for now.
-			bool flipped = !(m_isRobot || m_isSpider) && (m_isUpsideDown != m_isSideways);
+			bool flipped = !(m_isRobot || m_isSpider || m_isShip || m_isBird) && (m_isUpsideDown != m_isSideways);
 			sprite->setFlipped(flipped);
 		} else {
 			sprite->setFlipped(false);
@@ -318,6 +318,34 @@ class $modify(PSPlayerObject, PlayerObject) {
 		} else if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:StaticDeath")) {
 			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
 		} else if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:StaticDeathDisappear")) {
+			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
+		}
+	}
+
+	void hitGround(GameObject* object, bool notFlipped) {
+		PlayerObject::hitGround(object, notFlipped);
+
+		auto* sprite = m_fields->modSprite;
+		if (!sprite || !m_gameLayer || m_isDead || m_fields->levelComplete) return;
+
+		auto gamemode = currentGamemodeName(this);
+		audio::playForEvent(m_isPlatformer, gamemode, "Mod:HitGround");
+
+		auto* pack = activePackFor(m_isPlatformer, gamemode);
+		if (!pack) return;
+
+		bool forceOverride = sprite->currentCancelsOn("Mod:HitGround");
+		auto* anim = findEnabledEvent(*pack, gamemode, "Mod:HitGround");
+
+		if (!anim) {
+			if (forceOverride) sprite->stopAnim();
+			return;
+		}
+
+		bool alreadyPlayingThis = sprite->isPlaying() && sprite->currentGamemode() == gamemode && sprite->currentEventName() == anim->id;
+		if (!alreadyPlayingThis) {
+			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, forceOverride);
+		} else if (sprite->currentInterruptBySelf()) {
 			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
 		}
 	}
