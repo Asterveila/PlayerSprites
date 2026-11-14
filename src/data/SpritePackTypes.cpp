@@ -652,7 +652,7 @@ namespace playersprites {
 				std::vector<std::string> chain;
 				auto resolvedRes = resolveMimic(rawTaunts, gamemodeName, tauntName, chain);
 				if (resolvedRes.isErr()) return Err(resolvedRes.unwrapErr());
-				auto tauntJson = resolvedRes.unwrap();
+				const auto tauntJson = resolvedRes.unwrap();
 
 				auto animRes = AnimEvent::parse(fmt::format("{}/{}", gamemodeName, tauntName), tauntJson);
 				if (animRes.isErr()) return Err(animRes.unwrapErr());
