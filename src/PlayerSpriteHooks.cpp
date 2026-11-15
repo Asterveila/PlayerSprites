@@ -100,6 +100,9 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		bool levelComplete = false;
 		bool hasCompleteAnim = false;
+		bool glowHidden = false;
+		bool dashFireHidden = false;
+		bool dashFireWasVisible = false;
 
 		// taunt stuff
 		std::unordered_map<std::string, size_t> tauntNext;
@@ -265,6 +268,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 	void setVanillaVisible(bool visible, GlobalAttributes const& attrs) {
 		bool complexIcon = m_isRobot || m_isSpider;
+		auto flds = m_fields.self();
 
 		if (complexIcon) {
 			m_robotBatchNode->setVisible(visible);
@@ -292,7 +296,27 @@ class $modify(PSPlayerObject, PlayerObject) {
 			}
 		}
 
-		if (!attrs.keepDashFire) m_dashSpritesContainer->setVisible(visible);
+		m_dashSpritesContainer->setVisible(true);
+
+		if (!visible) {
+			if (m_iconGlow) m_iconGlow->setVisible(false);
+			if (m_vehicleGlow) m_vehicleGlow->setVisible(false);
+			flds->glowHidden = true;
+		} else if (flds->glowHidden) {
+			flds->glowHidden = false;
+			this->updatePlayerGlow();
+		}
+
+		if (!visible && !attrs.keepDashFire) {
+			if (m_dashFireSprite) {
+				if (!flds->dashFireHidden) flds->dashFireWasVisible = m_dashFireSprite->isVisible();
+				m_dashFireSprite->setVisible(false);
+			}
+			flds->dashFireHidden = true;
+		} else if (flds->dashFireHidden) {
+			flds->dashFireHidden = false;
+			if (m_dashFireSprite) m_dashFireSprite->setVisible(flds->dashFireWasVisible || m_isDashing);
+		}
 	}
 
 	PlayerSprite* getModSprite() {
