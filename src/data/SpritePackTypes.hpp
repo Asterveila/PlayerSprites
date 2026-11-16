@@ -152,6 +152,7 @@ namespace playersprites {
 		bool ordered = false; // only works when multiple sounds exist on an array. if true, plays them in order instead of picking one at random.
 		float resetAfter = 0.f; // only if ordered is true. defines how long until the next sound to play is reset back to the first one (say, if u play 1 -> 2 and dont play 3, after this time, you wont play 3 next time but rather 1 again.)
 		bool defaultEnabled = true; // self explanatory.
+		std::optional<float> interval; // only for sfx using Mod:Update. kinda self explanatory, sfx will play every {this} seconds.
 	};
 
 	struct SoundSet {

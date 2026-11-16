@@ -198,6 +198,13 @@ class $modify(PSPlayerObject, PlayerObject) {
 			}
 		}
 
+		if (!standingStill && !m_isDead && audio::hasUpdateSounds(gamemode)) {
+			auto* updateAnim = findEnabledEvent(*pack, gamemode, "Mod:Update");
+			if (updateAnim && sprite->isPlaying() && sprite->currentGamemode() == gamemode && sprite->currentEventName() == updateAnim->id) {
+				audio::playUpdateSounds(m_isPlatformer, gamemode);
+			}
+		}
+
 		if (!sprite->isPlaying() && !m_isDead) {
 			sprite->getSprite()->setVisible(false);
 		}

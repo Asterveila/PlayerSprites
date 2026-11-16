@@ -505,6 +505,15 @@ namespace playersprites {
 						}
 						entry.resetAfter = *resetAfter;
 					}
+
+					auto intervalRes = optionalFloat(entryJson, "interval", ctx);
+					if (intervalRes.isErr()) return Err(intervalRes.unwrapErr());
+					if (auto interval = intervalRes.unwrap()) {
+						if (*interval <= 0.f) {
+							return Err(fmt::format("{}: 'interval' must be greater than 0", ctx));
+						}
+						entry.interval = *interval;
+					}
 				} else {
 					auto filesRes = stringList(entryJson, ctx);
 					if (filesRes.isErr()) return Err(filesRes.unwrapErr());
@@ -516,6 +525,15 @@ namespace playersprites {
 				}
 				if (entry.triggerOn.empty()) {
 					entry.triggerOn.push_back(entryId);
+				}
+
+				bool triggersOnUpdate = std::find(entry.triggerOn.begin(), entry.triggerOn.end(), "Mod:Update") != entry.triggerOn.end();
+				if (triggersOnUpdate && !entry.interval) {
+					return Err(fmt::format("{}: sounds triggered by 'Mod:Update' need the full form with an 'interval' value (in seconds)", ctx));
+				}
+				if (entry.interval && !triggersOnUpdate) {
+					geode::log::warn("{}: 'interval' only applies to 'Mod:Update'. we'll ignore it but you shouldn't have it.", ctx);
+					entry.interval.reset();
 				}
 
 				for (auto const& rel : relPaths) {

@@ -30,6 +30,11 @@ namespace playersprites::audio {
 		return states;
 	}
 
+	std::unordered_map<SoundEntry const*, std::chrono::steady_clock::time_point>& updateTimers() {
+		static std::unordered_map<SoundEntry const*, std::chrono::steady_clock::time_point> timers;
+		return timers;
+	}
+
 	std::string enginePath(fs::path const& file) {
 		return geode::utils::string::pathToString(file);
 	}
@@ -94,11 +99,50 @@ namespace playersprites::audio {
 		playFile(pickFile(pack.id, gamemode, *entry));
 	}
 
+	bool hasUpdateSounds(std::string const& gamemode) {
+		for (auto const& pack : PackManager::get().getLoadedPacks()) {
+			auto gmIt = pack.sounds.index.find(gamemode);
+			if (gmIt != pack.sounds.index.end() && gmIt->second.count("Mod:Update")) return true;
+		}
+		return false;
+	}
+
+	void playUpdateSounds(bool platformer, std::string const& gamemode) {
+		auto now = std::chrono::steady_clock::now();
+
+		for (auto const& pack : PackManager::get().getLoadedPacks()) {
+			auto entries = pack.sounds.matching(gamemode, "Mod:Update");
+			if (entries.empty()) continue;
+
+			if (!settings::isPackActive(pack.id, platformer)) continue;
+			if (!settings::isSfxEnabled(pack.id)) continue;
+
+			bool handled = false;
+			for (auto const* entry : entries) {
+				if (entry->files.empty() || !entry->interval) continue;
+				if (!settings::isSoundEnabled(pack.id, gamemode, entry->id, entry->defaultEnabled)) continue;
+
+				handled = true;
+
+				auto& nextAt = updateTimers()[entry];
+				if (now < nextAt) continue;
+
+				nextAt = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+					std::chrono::duration<float>(*entry->interval)
+				);
+				playFile(pickFile(pack.id, gamemode, *entry));
+			}
+
+			if (handled) return;
+		}
+	}
+
 	void playFile(fs::path const& file) {
 		FMODAudioEngine::sharedEngine()->playEffect(enginePath(file));
 	}
 
 	void resetSequences() {
+		updateTimers().clear();
 		sequences().clear();
 	}
 
@@ -123,6 +167,7 @@ namespace playersprites::audio {
 	}
 
 	void unloadAll() {
+		updateTimers().clear();
 		sequences().clear();
 
 		if (preloadedPaths().empty()) return;
