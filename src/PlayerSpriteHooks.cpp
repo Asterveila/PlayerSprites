@@ -12,17 +12,6 @@
 using namespace geode::prelude;
 using namespace playersprites;
 
-$on_mod(Loaded) {
-	#ifndef GEODE_IS_DESKTOP
-
-	if (!Mod::get()->setSavedValue("enabledButtonForMobile", true)) {
-		Mod::get()->setSettingValue<bool>("enable-button", true);
-	}
-
-	#endif
-	
-}
-
 struct ButtonPositionData {
 	float xPos;
 	float yPos;
@@ -100,6 +89,8 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		bool levelComplete = false;
 		bool hasCompleteAnim = false;
+		bool didTheThing = false;
+
 		bool glowHidden = false;
 		bool dashFireHidden = false;
 		bool dashFireWasVisible = false;
@@ -440,12 +431,41 @@ class $modify(PSPlayerObject, PlayerObject) {
 		return true;
 	}
 
+	bool runLevelCompleteStuff() {
+		auto flds = m_fields.self();
+		if (flds->didTheThing) return false;
+		flds->didTheThing = true;
+
+		auto* sprite = flds->modSprite;
+		if (!sprite) return true;
+
+		auto gamemode = currentGamemodeName(this);
+		auto* pack = activePackFor(m_isPlatformer, gamemode);
+		if (!pack) return true;
+
+		flds->levelComplete = true;
+
+		if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:LevelComplete")) {
+			flds->hasCompleteAnim = true;
+			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
+			sprite->setVisible(true);
+			this->setVanillaVisible(false, pack->globalAttributes);
+		} else {
+			flds->hasCompleteAnim = false;
+			sprite->stopAnim();
+			sprite->setVisible(false);
+			this->setVanillaVisible(true, pack->globalAttributes);
+		}
+		return true;
+	}
+
 	void resetObject() {
 		PlayerObject::resetObject();
 
 		audio::resetSequences();
 		m_fields->levelComplete = false;
 		m_fields->hasCompleteAnim = false;
+		m_fields->didTheThing = false;
 
 		m_fields->tauntNext.clear();
 		m_fields->tauntLast.clear();
@@ -453,38 +473,106 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		if (auto* sprite = m_fields->modSprite) sprite->resetState();
 	}
-
-	void playCompleteEffect(bool noEffects, bool instant) {
-		PlayerObject::playCompleteEffect(noEffects, instant);
-
-		auto* sprite = m_fields->modSprite;
-		if (!sprite) return;
-
-		auto gamemode = currentGamemodeName(this);
-		auto* pack = activePackFor(m_isPlatformer, gamemode);
-		if (!pack) return;
-
-		m_fields->levelComplete = true;
-		audio::playForEvent(m_isPlatformer, gamemode, "Mod:LevelComplete");
-
-		if (auto* anim = findEnabledEvent(*pack, gamemode, "Mod:LevelComplete")) {
-			m_fields->hasCompleteAnim = true;
-			sprite->triggerAnim(*pack, *anim, gamemode, anim->id, true);
-			sprite->setVisible(true);
-			this->setVanillaVisible(false, pack->globalAttributes);
-		} else {
-			m_fields->hasCompleteAnim = false;
-			sprite->stopAnim();
-			sprite->setVisible(false);
-		}
-	}
 };
 
 class $modify(PSBaseGameLayer, GJBaseGameLayer) {
+	ButtonPositionData getButtonPosData(std::string chosenSetting) {
+		ButtonPositionData data;
+		float safeZone = 10.f;
+
+		// log::info("Chosen Button Position: {}", chosenSetting);
+
+		if (chosenSetting == "Top Left") {
+			data.xPos = safeZone;
+			data.yPos = CCDirector::sharedDirector()->getWinSize().height - safeZone;
+			data.xAnchor = 0.f;
+			data.yAnchor = 1.f;
+		} else if (chosenSetting == "Bottom Left") {
+			data.xPos = safeZone;
+			data.yPos = safeZone;
+			data.xAnchor = 0.f;
+			data.yAnchor = 0.f;
+		} else if (chosenSetting == "Bottom Right") {
+			data.xPos = CCDirector::sharedDirector()->getWinSize().width - safeZone;
+			data.yPos = safeZone;
+			data.xAnchor = 1.f;
+			data.yAnchor = 0.f;
+		} else if (chosenSetting == "Middle Right") {
+			data.xPos = CCDirector::sharedDirector()->getWinSize().width - safeZone;
+			data.yPos = CCDirector::sharedDirector()->getWinSize().height / 2.f;
+			data.xAnchor = 1.f;
+			data.yAnchor = 0.5f;
+		} else {
+			// default to middle right cuz that's the better pos
+			data.xPos = CCDirector::sharedDirector()->getWinSize().width - safeZone;
+			data.yPos = CCDirector::sharedDirector()->getWinSize().height / 2.f;
+			data.xAnchor = 1.f;
+			data.yAnchor = 0.5f;
+		}
+
+		return data;
+	}
+
+	void theFunctionThatJustCallsTheTaunt(CCObject* sender) {
+		std::vector<PlayerObject*> players = { m_player1 };
+		if (m_gameState.m_isDualMode) players.push_back(m_player2);
+
+		bool tauntStarted = false;
+		std::unordered_set<std::string> playedSounds;
+		for (auto* player : players) {
+			if (!player) continue;
+			if (static_cast<PSPlayerObject*>(player)->runTaunt(playedSounds, sender)) tauntStarted = true;
+		}
+	}
+
 	bool init() {
 		if (!GJBaseGameLayer::init()) return false;
 
 		audio::preloadAll();
+
+		this->addEventListener(
+			KeybindSettingPressedEventV3(Mod::get(), "taunt-keybind"),
+			[this](Keybind const&, bool down, bool repeat, double) {
+				if (!down || repeat || PlayLayer::get()->m_isPaused) return false;
+
+				std::vector<PlayerObject*> players = { m_player1 };
+				if (m_gameState.m_isDualMode) players.push_back(m_player2);
+
+				bool tauntStarted = false;
+				std::unordered_set<std::string> playedSounds;
+				for (auto* player : players) {
+					if (!player) continue;
+					if (static_cast<PSPlayerObject*>(player)->runTaunt(playedSounds, nullptr)) tauntStarted = true;
+				}
+				return tauntStarted;
+			}
+		);
+
+		if (Mod::get()->getSettingValue<bool>("enable-button")) {
+			ButtonPositionData btnPosData = getButtonPosData(Mod::get()->getSettingValue<std::string>("button-pos"));
+			std::unordered_set<std::string> playedSounds;
+
+			auto btnSpr = CCSprite::createWithSpriteFrameName("tauntBtn.png"_spr);
+			btnSpr->setOpacity(75);
+
+			auto btn = CCMenuItemSpriteExtra::create(
+				btnSpr, 
+				this, 
+				menu_selector(PSBaseGameLayer::theFunctionThatJustCallsTheTaunt)
+			);
+
+			auto menu = CCMenu::create();
+			menu->setContentSize(btnSpr->getContentSize());
+			menu->setPosition({btnPosData.xPos, btnPosData.yPos});
+			menu->setAnchorPoint({btnPosData.xAnchor, btnPosData.yAnchor});
+			menu->ignoreAnchorPointForPosition(false);
+			menu->setID("taunt-button"_spr);
+			menu->addChild(btn);
+			
+			btn->setPosition({menu->getContentSize().width / 2.f, menu->getContentSize().height / 2.f});
+
+			m_uiLayer->addChild(menu);
+		}
 
 		return true;
 	}
@@ -571,100 +659,21 @@ class $modify(PSGhostTrailEffect, GhostTrailEffect) {
 };
 
 class $modify(PSPlayLayer, PlayLayer) {
-	ButtonPositionData getButtonPosData(std::string chosenSetting) {
-		ButtonPositionData data;
-		float safeZone = 10.f;
+	void levelComplete() {
+		PlayLayer::levelComplete();
 
-		// log::info("Chosen Button Position: {}", chosenSetting);
-
-		if (chosenSetting == "Top Left") {
-			data.xPos = safeZone;
-			data.yPos = CCDirector::sharedDirector()->getWinSize().height - safeZone;
-			data.xAnchor = 0.f;
-			data.yAnchor = 1.f;
-		} else if (chosenSetting == "Bottom Left") {
-			data.xPos = safeZone;
-			data.yPos = safeZone;
-			data.xAnchor = 0.f;
-			data.yAnchor = 0.f;
-		} else if (chosenSetting == "Bottom Right") {
-			data.xPos = CCDirector::sharedDirector()->getWinSize().width - safeZone;
-			data.yPos = safeZone;
-			data.xAnchor = 1.f;
-			data.yAnchor = 0.f;
-		} else if (chosenSetting == "Middle Right") {
-			data.xPos = CCDirector::sharedDirector()->getWinSize().width - safeZone;
-			data.yPos = CCDirector::sharedDirector()->getWinSize().height / 2.f;
-			data.xAnchor = 1.f;
-			data.yAnchor = 0.5f;
-		} else {
-			// default to middle right cuz that's the better pos
-			data.xPos = CCDirector::sharedDirector()->getWinSize().width - safeZone;
-			data.yPos = CCDirector::sharedDirector()->getWinSize().height / 2.f;
-			data.xAnchor = 1.f;
-			data.yAnchor = 0.5f;
-		}
-
-		return data;
-	}
-
-	void theFunctionThatJustCallsTheTaunt(CCObject* sender) {
 		std::vector<PlayerObject*> players = { m_player1 };
 		if (m_gameState.m_isDualMode) players.push_back(m_player2);
 
-		bool tauntStarted = false;
-		std::unordered_set<std::string> playedSounds;
+		std::unordered_set<std::string> soundGamemodes;
 		for (auto* player : players) {
 			if (!player) continue;
-			if (static_cast<PSPlayerObject*>(player)->runTaunt(playedSounds, sender)) tauntStarted = true;
-		}
-	}
+			if (!static_cast<PSPlayerObject*>(player)->runLevelCompleteStuff()) continue;
 
-	void setupHasCompleted() {
-		PlayLayer::setupHasCompleted();
-
-		this->addEventListener(
-			KeybindSettingPressedEventV3(Mod::get(), "taunt-keybind"),
-			[this](Keybind const&, bool down, bool repeat, double) {
-				if (!down || repeat || m_isPaused) return false;
-
-				std::vector<PlayerObject*> players = { m_player1 };
-				if (m_gameState.m_isDualMode) players.push_back(m_player2);
-
-				bool tauntStarted = false;
-				std::unordered_set<std::string> playedSounds;
-				for (auto* player : players) {
-					if (!player) continue;
-					if (static_cast<PSPlayerObject*>(player)->runTaunt(playedSounds, nullptr)) tauntStarted = true;
-				}
-				return tauntStarted;
+			auto gamemode = currentGamemodeName(player);
+			if (soundGamemodes.insert(gamemode).second) {
+				audio::playForEvent(m_isPlatformer, gamemode, "Mod:LevelComplete");
 			}
-		);
-
-		if (Mod::get()->getSettingValue<bool>("enable-button")) {
-			ButtonPositionData btnPosData = getButtonPosData(Mod::get()->getSettingValue<std::string>("button-pos"));
-			std::unordered_set<std::string> playedSounds;
-
-			auto btnSpr = CCSprite::createWithSpriteFrameName("tauntBtn.png"_spr);
-			btnSpr->setOpacity(75);
-
-			auto btn = CCMenuItemSpriteExtra::create(
-				btnSpr, 
-				this, 
-				menu_selector(PSPlayLayer::theFunctionThatJustCallsTheTaunt)
-			);
-
-			auto menu = CCMenu::create();
-			menu->setContentSize(btnSpr->getContentSize());
-			menu->setPosition({btnPosData.xPos, btnPosData.yPos});
-			menu->setAnchorPoint({btnPosData.xAnchor, btnPosData.yAnchor});
-			menu->ignoreAnchorPointForPosition(false);
-			menu->setID("taunt-button"_spr);
-			menu->addChild(btn);
-			
-			btn->setPosition({menu->getContentSize().width / 2.f, menu->getContentSize().height / 2.f});
-
-			m_uiLayer->addChild(menu);
 		}
 	}
 };

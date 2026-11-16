@@ -35,7 +35,12 @@
 		"enable-button": {
 			"type": "bool",
 			"name": "Enable Taunt Button",
-			"default": false,
+			"default": {
+				"android": true,
+				"ios": true,
+				"mac": false,
+				"win": false
+			},
 			"description": "Enables a button to Taunt with by pressing it, instead of using the Keybind. Mainly intended for Mobile users, obviously."
 		},
 		"button-pos": {
