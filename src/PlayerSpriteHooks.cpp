@@ -324,12 +324,15 @@ class $modify(PSPlayerObject, PlayerObject) {
 	void playerDestroyed(bool noEffects) {
 		auto gamemode = currentGamemodeName(this);
 		auto* pack = activePackFor(m_isPlatformer, gamemode);
+		bool platformer = m_isPlatformer;
 
 		if (pack && pack->globalAttributes.noDeathEffects) noEffects = true;
 
 		PlayerObject::playerDestroyed(noEffects);
 
-		audio::playForEvent(m_isPlatformer, gamemode, "Mod:Death");
+		geode::queueInMainThread([platformer, gamemode]() {
+			audio::playForEvent(platformer, gamemode, "Mod:Death");
+		});
 
 		auto* sprite = m_fields->modSprite;
 		if (!sprite || !pack) return;
