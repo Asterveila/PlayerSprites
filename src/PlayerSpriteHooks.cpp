@@ -91,9 +91,8 @@ class $modify(PSPlayerObject, PlayerObject) {
 		bool hasCompleteAnim = false;
 		bool didTheThing = false;
 
-		bool glowHidden = false;
-		bool dashFireHidden = false;
-		bool dashFireWasVisible = false;
+		bool iconGlowHidden = false;
+		bool vehicleGlowHidden = false;
 
 		// taunt stuff
 		std::unordered_map<std::string, size_t> tauntNext;
@@ -212,7 +211,6 @@ class $modify(PSPlayerObject, PlayerObject) {
 		if (sprite->currentLockRotation()) {
 			this->setRotation(0.f);
 
-			// im just gonna assume the spider behaves  the same. for now.
 			bool flipped = !(m_isRobot || m_isSpider || m_isShip || m_isBird) && (m_isUpsideDown != m_isSideways);
 			sprite->setFlipped(flipped);
 		} else {
@@ -220,7 +218,8 @@ class $modify(PSPlayerObject, PlayerObject) {
 		}
 
 		bool showVanilla = !sprite->isPlaying() || sprite->currentKeepPlayer();
-		this->setVanillaVisible(showVanilla, pack->globalAttributes);
+		bool keepRider = sprite->isPlaying() && sprite->currentKeepRider();
+		this->setVanillaVisible(showVanilla, pack->globalAttributes, keepRider);
 
 		if (m_ghostTrail) {
 			auto behavior = Mod::get()->getSettingValue<std::string>("ghost-trail-behavior");
@@ -264,7 +263,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 		}
 	}
 
-	void setVanillaVisible(bool visible, GlobalAttributes const& attrs) {
+	void setVanillaVisible(bool visible, GlobalAttributes const& attrs, bool keepRider = false) {
 		bool complexIcon = m_isRobot || m_isSpider;
 		auto flds = m_fields.self();
 
@@ -275,9 +274,9 @@ class $modify(PSPlayerObject, PlayerObject) {
 			if (m_isRobot && m_robotFire && !visible && !attrs.keepRobotFire) m_robotFire->setVisible(false);
 			if (m_isRobot && m_robotBurstParticles) m_robotBurstParticles->setVisible(visible || attrs.keepRobotParticles);
 		} else {
-			m_iconSprite->setVisible(visible);
-			m_iconSpriteSecondary->setVisible(visible);
-			// m_iconSpriteWhitener->setVisible(visible);
+			bool riderKept = keepRider && (m_isShip || m_isBird);
+			m_iconSprite->setVisible(visible || riderKept);
+			m_iconSpriteSecondary->setVisible(visible || riderKept);
 
 			if (m_isShip || m_isBird) {
 				m_vehicleSprite->setVisible(visible);
@@ -296,24 +295,23 @@ class $modify(PSPlayerObject, PlayerObject) {
 
 		m_dashSpritesContainer->setVisible(true);
 
-		if (!visible) {
-			if (m_iconGlow) m_iconGlow->setVisible(false);
-			if (m_vehicleGlow) m_vehicleGlow->setVisible(false);
-			flds->glowHidden = true;
-		} else if (flds->glowHidden) {
-			flds->glowHidden = false;
-			this->updatePlayerGlow();
-		}
+		bool hideVehicleGlow = !visible;
+		bool hideIconGlow = !visible && !(keepRider && (m_isShip || m_isBird));
 
-		if (!visible && !attrs.keepDashFire) {
-			if (m_dashFireSprite) {
-				if (!flds->dashFireHidden) flds->dashFireWasVisible = m_dashFireSprite->isVisible();
+		bool needRestore = (flds->vehicleGlowHidden && !hideVehicleGlow) || (flds->iconGlowHidden && !hideIconGlow);
+		flds->vehicleGlowHidden = hideVehicleGlow;
+		flds->iconGlowHidden = hideIconGlow;
+
+		if (needRestore) this->updatePlayerGlow();
+		if (hideVehicleGlow && m_vehicleGlow) m_vehicleGlow->setVisible(false);
+		if (hideIconGlow && m_iconGlow) m_iconGlow->setVisible(false);
+
+		if (m_dashFireSprite) {
+			if (!visible && !attrs.keepDashFire) {
 				m_dashFireSprite->setVisible(false);
+			} else if (m_dashFireSprite->isVisible() != m_isDashing) {
+				m_dashFireSprite->setVisible(m_isDashing);
 			}
-			flds->dashFireHidden = true;
-		} else if (flds->dashFireHidden) {
-			flds->dashFireHidden = false;
-			if (m_dashFireSprite) m_dashFireSprite->setVisible(flds->dashFireWasVisible || m_isDashing);
 		}
 	}
 

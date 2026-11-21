@@ -57,6 +57,7 @@ namespace playersprites {
 		// if true, the vanilla GD icon/vehicle sprites stay visible alongside this custom sprite instead of being hidden. defaults to false.
 		// normally the custom sprite fully replaces the vanilla icons. u can use this to make overlays or something.
 		bool keepPlayer = false;
+		bool keepRider = false; // same as above, but it only applies to the rider cube (your cube on top of Ship/UFO/Jetpack basically). The actual vehicle does get hidden if this is true, though. If you wanna keep both just use keepPlayer.
 
 		// self explanatory. array of GameEvent names that can cancel this animation.
 		// this is very useful for fine control over when animations stop if you're having issues

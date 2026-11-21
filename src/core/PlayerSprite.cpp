@@ -161,6 +161,7 @@ namespace playersprites {
 		m_currentInterruptBySelf = anim.interruptBySelf;
 		m_currentLockRotation = anim.lockRotation;
 		m_currentKeepPlayer = anim.keepPlayer;
+		m_currentKeepRider = anim.keepRider;
 		m_currentHoldFor = anim.holdFor;
 		m_currentCancelOn = anim.cancelOn;
 		m_currentFadeOutTime = anim.fadeOutTime;
@@ -299,6 +300,7 @@ namespace playersprites {
 		m_currentCanBeInterrupted = true;
 		m_currentLockRotation = false;
 		m_currentKeepPlayer = false;
+		m_currentKeepRider = false;
 		m_currentHoldFor.reset();
 		m_currentCancelOn.clear();
 		m_currentFadeOutTime.reset();

@@ -294,6 +294,7 @@ namespace playersprites {
 		ev.canBeInterrupted = optionalBool(json, "canBeInterrupted", true);
 		ev.interruptBySelf = optionalBool(json, "interruptBySelf", false);
 		ev.keepPlayer = optionalBool(json, "keepPlayer", false);
+		ev.keepRider = optionalBool(json, "keepRider", false);
 
 		auto const& skipForLoopVal = json["skipForLoop"];
 		if (!skipForLoopVal.isNull()) {

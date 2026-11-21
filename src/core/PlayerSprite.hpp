@@ -21,6 +21,7 @@ namespace playersprites {
 		bool m_currentInterruptBySelf = false;
 		bool m_currentLockRotation = false;
 		bool m_currentKeepPlayer = false;
+		bool m_currentKeepRider = false;
 		std::optional<float> m_currentHoldFor;
 		std::vector<std::string> m_currentCancelOn;
 		std::optional<float> m_currentFadeOutTime;
@@ -75,6 +76,7 @@ namespace playersprites {
 		std::string const& currentEventName() const { return m_currentEventName; }
 
 		bool currentKeepPlayer() const { return m_currentKeepPlayer; }
+		bool currentKeepRider() const { return m_currentKeepRider; }
 		bool currentLockRotation() const { return m_currentLockRotation; }
 		bool currentIsStateDriven() const { return m_currentIsStateDriven; }
 		bool currentInterruptBySelf() const { return m_currentInterruptBySelf; }
