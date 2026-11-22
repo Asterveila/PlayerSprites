@@ -143,7 +143,7 @@ namespace playersprites {
 				.description = "Sprite Packs",
 				.files = { "*.zip" }
 			}}
-		}), [this](Result<std::optional<std::filesystem::path>> res) {
+		}), [this](Result<std::optional<asp::fs::Path>> res) {
 			if (res.isErr()) {
 				FLAlertLayer::create("Import failed!", fmt::format("couldn't open the file picker: {}", res.unwrapErr()), "OK")->show();
 				return;

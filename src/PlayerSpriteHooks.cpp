@@ -8,6 +8,7 @@
 #include <Geode/modify/PlayerObject.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/GhostTrailEffect.hpp>
+#include <random>
 
 using namespace geode::prelude;
 using namespace playersprites;

@@ -5,6 +5,7 @@
 #include <matjson.hpp>
 #include <Geode/Geode.hpp>
 #include <Geode/utils/file.hpp>
+#include <asp/fs/std.hpp>
 
 using namespace geode::prelude;
 
@@ -22,8 +23,8 @@ namespace playersprites {
 	Result<SpritePack, std::string> PackManager::loadOne(std::string const& id) {
 		auto root = Registry::packsDir() / id;
 
-		if (!fs::exists(root) || !fs::is_directory(root)) {
-			return Err(fmt::format("pack folder does not exist: {}", utils::string::pathToString(root)));
+		if (!root.isDir()) {
+			return Err(fmt::format("pack folder does not exist: {}", root.string()));
 		}
 
 		auto packJsonPath = root / "spr-pack.json";
@@ -132,9 +133,10 @@ namespace playersprites {
 	Result<void, std::string> PackManager::deletePack(std::string const& id) {
 		if (!m_registry.contains(id)) return Err(std::string("that pack isn't in the registry."));
 
-		auto packsDir = Registry::packsDir().lexically_normal();
-		auto root = (packsDir / id).lexically_normal();
-		if (id.empty() || root.parent_path() != packsDir) {
+		auto packsDir = Registry::packsDir().lexicallyNormal();
+		auto root = (packsDir / id).lexicallyNormal();
+		auto rootParent = root.parent();
+		if (id.empty() || !rootParent || *rootParent != packsDir.view()) {
 			return Err(fmt::format("'{}' doesn't seem to point to a folder inside the packs folder. nothing was deleted just to be safe.", id));
 		}
 
@@ -149,15 +151,14 @@ namespace playersprites {
 
 		settings::clearPack(id);
 
-		std::error_code ec;
-		fs::remove_all(root, ec);
+		auto removeRes = fs::removeDirAll(root, false);
 
 		this->reload();
 
-		if (ec) {
+		if (removeRes.isErr()) {
 			return Err(fmt::format(
 				"the pack was removed from your registry, but its folder couldn't be fully deleted ({}). if u wanna delete it by yourself: {}",
-				ec.message(), utils::string::pathToString(root)
+				removeRes.unwrapErr(), root.string()
 			));
 		}
 		return Ok();
@@ -171,23 +172,24 @@ namespace playersprites::transfer {
 	// HELPERS START
 	// -----------------------------------------
 
-	bool isPackFile(fs::path const& file) {
-		auto ext = utils::string::pathToString(file.extension());
+	bool isPackFile(fs::Path const& file) {
+		auto ext = std::string(file.extension().value_or(""));
 		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-		return ext == ".json" || ext == ".png" || ext == ".ogg" || ext == ".wav";
+		return ext == "json" || ext == "png" || ext == "ogg" || ext == "wav";
 	}
 
-	bool isThisBullshit(fs::path const& path) {
-		for (auto const& part : path) {
-			if (utils::string::pathToString(part) == "__MACOSX") return true;
+	bool isThisBullshit(fs::Path const& path) {
+		for (auto part : path.components()) {
+			if (part == "__MACOSX") return true;
 		}
-		return utils::string::pathToString(path.filename()).starts_with("._");
+		return path.filename().value_or("").view().starts_with("._");
 	}
 
-	bool isSafeRelative(fs::path const& path) {
-		if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory()) return false;
-		for (auto const& part : path) {
-			if (part == fs::path("..")) return false;
+	bool isSafeRelative(fs::Path const& path) {
+		auto pathView = path.view().view();
+		if (path.empty() || path.isAbsolute() || path.hasRootName() || pathView.starts_with('/') || pathView.starts_with('\\')) return false;
+		for (auto part : path.components()) {
+			if (part == "..") return false;
 		}
 		return true;
 	}
@@ -213,16 +215,15 @@ namespace playersprites::transfer {
 		return id;
 	}
 
-	void removeFolder(fs::path const& folder) {
-		std::error_code ec;
-		fs::remove_all(folder, ec);
+	void removeFolder(fs::Path const& folder) {
+		(void) fs::removeDirAll(folder, false);
 	}
 
 	// -----------------------------------------
 	// HELPERS END
 	// -----------------------------------------
 
-	Result<std::string, std::string> importPack(fs::path const& zipPath) {
+	Result<std::string, std::string> importPack(fs::Path const& zipPath) {
 		auto unzipRes = file::Unzip::create(zipPath);
 		if (unzipRes.isErr()) {
 			return Err(fmt::format("couldn't open zip: {}", unzipRes.unwrapErr()));
@@ -230,19 +231,19 @@ namespace playersprites::transfer {
 		auto unzip = std::move(unzipRes).unwrap();
 
 		auto entries = unzip.getEntries();
-		if (entries.size() > 2000) {
+		if (entries.size() > 3000) {
 			return Err(std::string("zip has wayyyy too many files in it to be a sprite pack. be careful what you're downloading."));
 		}
 
 		for (auto const& entry : entries) {
 			if (!isSafeRelative(entry)) {
-				return Err(fmt::format("zip contains unsafe path ({}), so it wasn't imported.", utils::string::pathToString(entry)));
+				return Err(fmt::format("zip contains unsafe path ({}), so it wasn't imported.", entry.string()));
 			}
 		}
 
-		std::vector<fs::path> manifests;
+		std::vector<fs::Path> manifests;
 		for (auto const& entry : entries) {
-			if (utils::string::pathToString(entry.filename()) == "spr-pack.json" && !isThisBullshit(entry)) manifests.push_back(entry);
+			if (entry.filename().value_or("").view() == "spr-pack.json" && !isThisBullshit(entry)) manifests.push_back(entry);
 		}
 		if (manifests.empty()) {
 			return Err(std::string("zip has no spr-pack.json in it, so it isn't a valid sprite pack. contact pack creator if you think this is a mistake!"));
@@ -251,13 +252,13 @@ namespace playersprites::transfer {
 			return Err(std::string("zip has more than one pack in it. please import them one at a time."));
 		}
 
-		auto packRootInZip = manifests[0].parent_path();
-		if (std::distance(packRootInZip.begin(), packRootInZip.end()) > 1) {
+		fs::Path packRootInZip = manifests[0].parent().value_or("");
+		if (packRootInZip.components().count() > 1) {
 			return Err(std::string("spr-pack.json has to be at the top of the zip, or directly inside a single folder."));
 		}
 
 		auto& registry = PackManager::get().registry();
-		auto baseName = packRootInZip.empty() ? utils::string::pathToString(zipPath.stem()) : utils::string::pathToString(packRootInZip);
+		auto baseName = packRootInZip.empty() ? std::string(zipPath.stem().value_or("")) : packRootInZip.string();
 		auto id = uniqueId(cleanupId(baseName), registry);
 		auto destRoot = Registry::packsDir() / id;
 
@@ -266,23 +267,24 @@ namespace playersprites::transfer {
 		}
 
 		for (auto const& entry : entries) {
-			if (entry.filename().empty()) continue;
+			if (!entry.filename()) continue;
 
-			auto rel = packRootInZip.empty() ? entry : entry.lexically_relative(packRootInZip);
-			if (rel.empty() || *rel.begin() == fs::path("..")) continue;
+			auto relOpt = packRootInZip.empty() ? std::optional<fs::Path>{ entry } : entry.lexicallyRelative(packRootInZip);
+			if (!relOpt || relOpt->empty() || relOpt->startsWith("..")) continue;
+			auto const& rel = *relOpt;
 			if (isThisBullshit(entry) || !isPackFile(rel)) continue;
 
-			auto dest = (destRoot / rel).lexically_normal();
-			auto fromRoot = dest.lexically_relative(destRoot);
-			if (fromRoot.empty() || *fromRoot.begin() == fs::path("..")) continue;
+			auto dest = (destRoot / rel).lexicallyNormal();
+			auto fromRoot = dest.lexicallyRelative(destRoot);
+			if (!fromRoot || fromRoot->empty() || fromRoot->startsWith("..")) continue;
 
-			if (auto res = file::createDirectoryAll(dest.parent_path()); res.isErr()) {
+			if (auto res = file::createDirectoryAll(dest.parent().value_or("")); res.isErr()) {
 				removeFolder(destRoot);
-				return Err(fmt::format("Couldn't create a folder for {}: {}", utils::string::pathToString(rel), res.unwrapErr()));
+				return Err(fmt::format("couldn't create a folder for {}: {}", rel.string(), res.unwrapErr()));
 			}
 			if (auto res = unzip.extractTo(entry, dest); res.isErr()) {
 				removeFolder(destRoot);
-				return Err(fmt::format("Couldn't extract {}: {}", utils::string::pathToString(rel), res.unwrapErr()));
+				return Err(fmt::format("couldn't extract {}: {}", rel.string(), res.unwrapErr()));
 			}
 		}
 
@@ -314,21 +316,21 @@ namespace playersprites::transfer {
 		return Ok(id);
 	}
 
-	Result<fs::path, std::string> exportPack(std::string const& packId) {
+	Result<fs::Path, std::string> exportPack(std::string const& packId) {
 		auto* pack = PackManager::get().findPack(packId);
 		if (!pack) {
 			return Err(std::string("that pack isn't loaded."));
 		}
 
-		auto exportDir = Mod::get()->getSettingValue<std::filesystem::path>("export-folder");
+		// @geode-ignore(unknown-setting)
+		auto exportDir = Mod::get()->getSettingValue<fs::Path>("export-folder");
 		if (auto res = file::createDirectoryAll(exportDir); res.isErr()) {
 			return Err(fmt::format("couldn't create export folder: {}", res.unwrapErr()));
 		}
 
 		auto outPath = exportDir / fmt::format("{}.zip", packId);
 
-		std::error_code ec;
-		fs::remove(outPath, ec);
+		(void) fs::remove(outPath);
 
 		std::optional<std::string> failure;
 		size_t added = 0;
@@ -340,23 +342,35 @@ namespace playersprites::transfer {
 			}
 			auto zip = std::move(zipRes).unwrap();
 
-			for (auto const& item : fs::recursive_directory_iterator(pack->rootPath, ec)) {
-				if (!item.is_regular_file(ec)) continue;
+			auto iterRes = fs::iterDirRecursive(pack->rootPath);
+			if (iterRes.isErr()) {
+				failure = fmt::format("couldn't read the pack's folder: {}", iterRes.unwrapErr());
+			} else {
+				auto iterator = std::move(iterRes).unwrap();
 
-				auto rel = item.path().lexically_relative(pack->rootPath);
-				if (rel.empty() || isThisBullshit(rel) || !isPackFile(rel)) continue;
+				for (auto entryRes : iterator) {
+					if (entryRes.isErr()) {
+						failure = fmt::format("couldn't read the pack's folder: {}", entryRes.unwrapErr());
+						break;
+					}
+					auto& item = entryRes.unwrap();
+					if (!item.isFile()) continue;
 
-				if (auto res = zip.addFrom(item.path(), rel.parent_path()); res.isErr()) {
-					failure = fmt::format("couldn't add {} to zip: {}", utils::string::pathToString(rel), res.unwrapErr());
-					break;
+					auto rel = item.path.lexicallyRelative(pack->rootPath);
+					if (!rel || rel->empty() || isThisBullshit(*rel) || !isPackFile(*rel)) continue;
+
+					if (auto res = zip.addFrom(item.path, rel->parent().value_or("")); res.isErr()) {
+						failure = fmt::format("couldn't add {} to zip: {}", rel->string(), res.unwrapErr());
+						break;
+					}
+					added++;
 				}
-				added++;
 			}
 		}
 
 		if (!failure && added == 0) failure = "this pack has no files to export.";
 		if (failure) {
-			fs::remove(outPath, ec);
+			(void) fs::remove(outPath);
 			return Err(*failure);
 		}
 

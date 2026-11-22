@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Geode/Result.hpp>
+#include <asp/fs.hpp>
 #include <matjson.hpp>
 
 // the wiki if it was fucking GOOOOOOOOOD
@@ -9,7 +10,7 @@
 // i think.
 namespace playersprites {
 
-	namespace fs = std::filesystem;
+	namespace fs = asp::fs;
 
 	// stuff for tintColour key
 	// type of colour source to use, None is... none (white), custom is, you'll never believe ts: a custom hex code
@@ -149,7 +150,7 @@ namespace playersprites {
 	struct SoundEntry {
 		std::string id;
 		std::vector<std::string> triggerOn; // same as the one for anims, array of events that trigger this sound list.
-		std::vector<fs::path> files; // list of sound files to play.
+		std::vector<fs::Path> files; // list of sound files to play.
 		bool ordered = false; // only works when multiple sounds exist on an array. if true, plays them in order instead of picking one at random.
 		float resetAfter = 0.f; // only if ordered is true. defines how long until the next sound to play is reset back to the first one (say, if u play 1 -> 2 and dont play 3, after this time, you wont play 3 next time but rather 1 again.)
 		bool defaultEnabled = true; // self explanatory.
@@ -166,13 +167,13 @@ namespace playersprites {
 		SoundEntry const* entry(std::string const& gamemode, std::string const& id) const;
 		std::vector<SoundEntry const*> matching(std::string const& gamemode, std::string const& eventName) const;
 
-		static geode::Result<SoundSet, std::string> parse(fs::path const& packRoot, matjson::Value const& json);
+		static geode::Result<SoundSet, std::string> parse(fs::Path const& packRoot, matjson::Value const& json);
 	};
 
 	struct SpritePack {
 		// folder name, also used as internal id
 		std::string id;
-		fs::path rootPath;
+		fs::Path rootPath;
 
 		SpritePackMeta meta;
 		GlobalAttributes globalAttributes;
@@ -184,7 +185,7 @@ namespace playersprites {
 		AnimEvent const* findEventById(std::string const& gamemode, std::string const& id) const;
 
 		static geode::Result<SpritePack, std::string> parse(
-			std::string const& id, fs::path const& rootPath, matjson::Value const& json
+			std::string const& id, fs::Path const& rootPath, matjson::Value const& json
 		);
 	};
 

@@ -69,30 +69,31 @@ namespace playersprites {
 		return Ok(std::move(out));
 	}
 
-	Result<std::optional<fs::path>, std::string> resolveSoundFile(fs::path const& normalRoot, std::string const& rel, std::string const& ctx) {
-		fs::path relPath = rel;
+	Result<std::optional<fs::Path>, std::string> resolveSoundFile(fs::Path const& normalRoot, std::string const& rel, std::string const& ctx) {
+		fs::Path relPath = rel;
 
-		auto ext = utils::string::pathToString(relPath.extension());
+		auto ext = std::string(relPath.extension().value_or(""));
 		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-		if (ext != ".ogg" && ext != ".wav") {
+		if (ext != "ogg" && ext != "wav") {
 			return Err(fmt::format("{}: '{}' isn't a supported format, only .ogg and .wav work", ctx, rel));
 		}
 
-		if (relPath.is_absolute() || relPath.has_root_name() || relPath.has_root_directory()) {
+		auto relView = relPath.view().view();
+		if (relPath.isAbsolute() || relPath.hasRootName() || relView.starts_with('/') || relView.starts_with('\\')) {
 			return Err(fmt::format("{}: '{}' has to be a path relative to the pack's folder", ctx, rel));
 		}
 
-		auto full = (normalRoot / relPath).lexically_normal();
-		auto fromRoot = full.lexically_relative(normalRoot);
-		if (fromRoot.empty() || *fromRoot.begin() == fs::path("..")) {
+		auto full = (normalRoot / relPath).lexicallyNormal();
+		auto fromRoot = full.lexicallyRelative(normalRoot);
+		if (!fromRoot || fromRoot->empty() || fromRoot->startsWith("..")) {
 			return Err(fmt::format("{}: '{}' points outside of the pack's folder", ctx, rel));
 		}
 
 		if (!fs::exists(full)) {
-			geode::log::warn("{}: missing file {}", ctx, utils::string::pathToString(full));
-			return Ok(std::optional<fs::path>{});
+			geode::log::warn("{}: missing file {}", ctx, full.string());
+			return Ok(std::optional<fs::Path>{});
 		}
-		return Ok(std::optional<fs::path>{ std::move(full) });
+		return Ok(std::optional<fs::Path>{ std::move(full) });
 	}
 
 	bool optionalBool(matjson::Value const& json, std::string const& field, bool defaultValue) {
@@ -459,12 +460,12 @@ namespace playersprites {
 		return result;
 	}
 
-	Result<SoundSet, std::string> SoundSet::parse(fs::path const& packRoot, matjson::Value const& json) {
+	Result<SoundSet, std::string> SoundSet::parse(fs::Path const& packRoot, matjson::Value const& json) {
 		if (!json.isObject()) {
 			return Err(std::string("sounds.json: root must be an object keyed by gamemode"));
 		}
 
-		auto const normalRoot = packRoot.lexically_normal();
+		auto const normalRoot = packRoot.lexicallyNormal();
 		SoundSet set;
 
 		for (auto const& [gamemodeName, gamemodeJson] : json) {
@@ -595,7 +596,7 @@ namespace playersprites {
 		return &evIt->second;
 	}
 
-	Result<SpritePack, std::string> SpritePack::parse(std::string const& id, fs::path const& rootPath, matjson::Value const& json) {
+	Result<SpritePack, std::string> SpritePack::parse(std::string const& id, fs::Path const& rootPath, matjson::Value const& json) {
 		if (!json.isObject()) {
 			return Err(std::string("spr-pack.json: root must be an object"));
 		}

@@ -74,12 +74,12 @@ namespace playersprites {
 		if (anim.singleFrame) {
 			auto path = folder / fmt::format("{}.png", anim.spriteName);
 			if (!fs::exists(path)) {
-				geode::log::warn("pack '{}' is missing single-frame file {}", pack.id, utils::string::pathToString(path));
+				geode::log::warn("pack '{}' is missing single-frame file {}", pack.id, path.string());
 				return frames;
 			}
-			auto* texture = CCTextureCache::sharedTextureCache()->addImage(utils::string::pathToString(path).c_str(), false);
+			auto* texture = CCTextureCache::sharedTextureCache()->addImage(path.c_str(), false);
 			if (!texture) {
-				geode::log::warn("pack '{}' failed to load texture {}", pack.id, utils::string::pathToString(path));
+				geode::log::warn("pack '{}' failed to load texture {}", pack.id, path.string());
 				return frames;
 			}
 			applyTextureMode(texture, pack.globalAttributes.pixelMode);
@@ -98,13 +98,13 @@ namespace playersprites {
 			auto path = folder / fileName;
 
 			if (!fs::exists(path)) {
-				geode::log::warn("pack '{}' is missing frame file {}", pack.id, utils::string::pathToString(path));
+				geode::log::warn("pack '{}' is missing frame file {}", pack.id, path.string());
 				continue;
 			}
 
-			auto* texture = CCTextureCache::sharedTextureCache()->addImage(utils::string::pathToString(path).c_str(), false);
+			auto* texture = CCTextureCache::sharedTextureCache()->addImage(path.c_str(), false);
 			if (!texture) {
-				geode::log::warn("pack '{}' failed to load texture {}", pack.id, utils::string::pathToString(path));
+				geode::log::warn("pack '{}' failed to load texture {}", pack.id, path.string());
 				continue;
 			}
 			applyTextureMode(texture, pack.globalAttributes.pixelMode);

@@ -3,7 +3,6 @@
 #include "../core/SoundPlayer.hpp"
 #include "../data/PackManager.hpp"
 #include "../data/PackSettings.hpp"
-#include <algorithm>
 
 namespace playersprites {
 
@@ -18,7 +17,7 @@ namespace playersprites {
 		if (shorthand) {
 			for (size_t i = 0; i < entry.files.size(); ++i) {
 				if (i > 0) text += ", ";
-				text += geode::utils::string::pathToString(entry.files[i].filename());
+				text += entry.files[i].filename().value_or("").view();
 			}
 		} else {
 			text = "Triggered by: ";

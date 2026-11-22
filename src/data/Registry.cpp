@@ -1,5 +1,7 @@
 #include "Registry.hpp"
 #include <matjson.hpp>
+#include <Geode/Geode.hpp>
+#include <Geode/utils/file.hpp>
 
 namespace playersprites {
 
@@ -7,7 +9,7 @@ namespace playersprites {
 	using geode::Err;
 	using geode::Result;
 
-	fs::path Registry::packsDir() {
+	fs::Path Registry::packsDir() {
 		return geode::Mod::get()->getConfigDir() / "packs";
 	}
 
@@ -15,8 +17,9 @@ namespace playersprites {
 		Registry reg;
 		reg.m_registryPath = geode::Mod::get()->getConfigDir() / "registry.json";
 
-		std::error_code ec;
-		fs::create_directories(packsDir(), ec);
+		if (auto createRes = fs::createDirAll(packsDir()); createRes.isErr()) {
+			geode::log::warn("couldn't create the packs folder: {}", createRes.unwrapErr());
+		}
 
 		if (!fs::exists(reg.m_registryPath)) {
 			auto saveRes = reg.save();

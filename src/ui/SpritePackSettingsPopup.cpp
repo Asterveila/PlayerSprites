@@ -418,19 +418,12 @@ namespace playersprites {
 		auto zipPath = std::move(res).unwrap();
 		FLAlertLayer::create(
 			"Export Successful!", 
-			fmt::format("Successfully exported pack to <cy>{}</c>! \n\nIf this isn't your preferred folder for exports, please change it in the mod's config.", geode::utils::string::pathToString(zipPath)),
+			fmt::format("Successfully exported pack to <cy>{}</c>! \n\nIf this isn't your preferred folder for exports, please change it in the mod's config.", zipPath.string()),
 			"OK"
 		)->show();
 
-		/*
-		Notification::create(
-			fmt::format("Exported {}", geode::utils::string::pathToString(zipPath.filename())),
-			NotificationIcon::Success
-		)->show();
-		*/
-
 		#ifdef GEODE_IS_DESKTOP
-			file::openFolder(zipPath.parent_path()); // this would prolly get annoying on android chat im #ngl
+			if (auto exportFolder = zipPath.parent()) file::openFolder(*exportFolder); // this would prolly get annoying on android chat im #ngl
 		#endif
 	}
 

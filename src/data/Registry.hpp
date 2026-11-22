@@ -1,18 +1,19 @@
 #pragma once
 
 #include <Geode/Result.hpp>
+#include <asp/fs.hpp>
 
 namespace playersprites {
 
-	namespace fs = std::filesystem;
+	namespace fs = asp::fs;
 
 	class Registry {
 	protected:
-		fs::path m_registryPath;
+		fs::Path m_registryPath;
 		std::vector<std::string> m_packIds;
 
 	public:
-		static fs::path packsDir();
+		static fs::Path packsDir();
 		static Registry loadOrCreate();
 
 		geode::Result<void, std::string> save() const;

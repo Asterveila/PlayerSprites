@@ -35,11 +35,11 @@ namespace playersprites::audio {
 		return timers;
 	}
 
-	std::string enginePath(fs::path const& file) {
-		return geode::utils::string::pathToString(file);
+	std::string enginePath(fs::Path const& file) {
+		return file.string();
 	}
 
-	fs::path const& pickFile(std::string const& packId, std::string const& gamemode, SoundEntry const& entry) {
+	fs::Path const& pickFile(std::string const& packId, std::string const& gamemode, SoundEntry const& entry) {
 		size_t count = entry.files.size();
 
 		if (!entry.ordered || count == 1) {
@@ -137,7 +137,7 @@ namespace playersprites::audio {
 		}
 	}
 
-	void playFile(fs::path const& file) {
+	void playFile(fs::Path const& file) {
 		FMODAudioEngine::sharedEngine()->playEffect(enginePath(file));
 	}
 

@@ -21,12 +21,12 @@ namespace playersprites {
 		return fmt::format("By {} - Assets by {}", meta.author, joined);
 	}
 
-	CCSprite* loadPackIcon(fs::path const& rootPath) {
+	CCSprite* loadPackIcon(fs::Path const& rootPath) {
 		// @geode-ignore(unknown-resource)
 		auto path = rootPath / "pack.png";
 		if (!fs::exists(path)) return CCSprite::create();
 
-		auto* texture = CCTextureCache::sharedTextureCache()->addImage(utils::string::pathToString(path).c_str(), false);
+		auto* texture = CCTextureCache::sharedTextureCache()->addImage(path.c_str(), false);
 		if (!texture) return CCSprite::create();
 
 		return CCSprite::createWithTexture(texture);

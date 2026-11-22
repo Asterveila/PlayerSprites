@@ -16,7 +16,7 @@ namespace playersprites {
 		bool init() override;
 		void buildList(bool keepScroll = false);
 
-		geode::async::TaskHolder<geode::Result<std::optional<std::filesystem::path>>> m_importListener;
+		geode::async::TaskHolder<geode::Result<std::optional<asp::fs::Path>>> m_importListener;
 
 		void onReload(CCObject* sender);
 		void onImport(CCObject* sender);

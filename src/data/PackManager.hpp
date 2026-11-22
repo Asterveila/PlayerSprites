@@ -34,8 +34,8 @@ namespace playersprites {
 
 namespace playersprites::transfer {
 
-	geode::Result<std::string, std::string> importPack(std::filesystem::path const& zipPath);
-	geode::Result<std::filesystem::path, std::string> exportPack(std::string const& packId);
+	geode::Result<std::string, std::string> importPack(fs::Path const& zipPath);
+	geode::Result<fs::Path, std::string> exportPack(std::string const& packId);
 	geode::Result<size_t, std::string> installBuiltinPacks();
 
 }
