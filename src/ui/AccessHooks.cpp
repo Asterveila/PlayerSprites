@@ -64,7 +64,23 @@ class $modify(PSGarageLayer, GJGarageLayer) {
                     )->show();
                 }
             )->show();
-            Mod::get()->setSavedValue<int>("builtin-version", 1);
+        } else if (Mod::get()->getSavedValue<int>("builtin-version", 0) < transfer::BUILTIN_CURRENTVER) {
+            MDPopup::create(
+                "Outdated Packs!",
+                "It seems like you have outdated versions of the mod's Built-in sprite packs.\n\nThis means you don't have the full experience, aren't able to see examples for all features and are missing out on any fixes done to them.\n\nWould you like to update your built-in packs?",
+                "I'm good", "Yes!",
+                [](bool wantsUpdate) {
+                    if (wantsUpdate) {
+                        auto res = transfer::updateBuiltinPacks();
+                        if (res.isErr()) {
+                            FLAlertLayer::create("Update failed...", res.unwrapErr(), "OK")->show();
+                        } else {
+                            Notification::create("Built-in packs updated!", NotificationIcon::Success)->show();
+                        }
+                    }
+                    SpritePackListPopup::create()->show();
+                }
+            )->show();
         } else {
             SpritePackListPopup::create()->show();
         }

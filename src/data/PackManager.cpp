@@ -172,6 +172,19 @@ namespace playersprites::transfer {
 	// HELPERS START
 	// -----------------------------------------
 
+	std::vector<std::string> const& builtinPackZips() {
+		static std::vector<std::string> const zips = {
+			"cute-lil-bow.zip",
+			"zero-x3.zip",
+			"zero-x4.zip",
+			"kris-ch5.zip",
+			"sonic-3.zip",
+			"sonic-1.zip",
+			"sonicmania.zip"
+		};
+		return zips;
+	}
+
 	bool isPackFile(fs::Path const& file) {
 		auto ext = std::string(file.extension().value_or(""));
 		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -223,7 +236,7 @@ namespace playersprites::transfer {
 	// HELPERS END
 	// -----------------------------------------
 
-	Result<std::string, std::string> importPack(fs::Path const& zipPath) {
+	Result<std::string, std::string> importPack(fs::Path const& zipPath, std::optional<std::string> const& overwriteId) {
 		auto unzipRes = file::Unzip::create(zipPath);
 		if (unzipRes.isErr()) {
 			return Err(fmt::format("couldn't open zip: {}", unzipRes.unwrapErr()));
@@ -259,8 +272,17 @@ namespace playersprites::transfer {
 
 		auto& registry = PackManager::get().registry();
 		auto baseName = packRootInZip.empty() ? std::string(zipPath.stem().value_or("")) : packRootInZip.string();
-		auto id = uniqueId(cleanupId(baseName), registry);
+		auto id = overwriteId ? *overwriteId : uniqueId(cleanupId(baseName), registry);
 		auto destRoot = Registry::packsDir() / id;
+
+		if (overwriteId) {
+			if (id.empty()) return Err(std::string("can't update a pack with no id."));
+
+			audio::unloadAll();
+			if (auto res = fs::removeDirAll(destRoot, false); res.isErr()) {
+				return Err(fmt::format("couldn't delete the old pack folder: {}", res.unwrapErr()));
+			}
+		}
 
 		if (auto res = file::createDirectoryAll(destRoot); res.isErr()) {
 			return Err(fmt::format("couldn't create pack's folder: {}", res.unwrapErr()));
@@ -288,14 +310,16 @@ namespace playersprites::transfer {
 			}
 		}
 
-		registry.addPack(id, true);
-		if (auto res = registry.save(); res.isErr()) {
-			registry.removePack(id);
-			removeFolder(destRoot);
-			return Err(fmt::format("couldn't update registry.json: {}", res.unwrapErr()));
-		}
+		if (!overwriteId) {
+			registry.addPack(id, true);
+			if (auto res = registry.save(); res.isErr()) {
+				registry.removePack(id);
+				removeFolder(destRoot);
+				return Err(fmt::format("couldn't update registry.json: {}", res.unwrapErr()));
+			}
 
-		settings::setPackEnabled(id, false);
+			settings::setPackEnabled(id, false);
+		}
 
 		PackManager::get().reload();
 
@@ -303,6 +327,7 @@ namespace playersprites::transfer {
 			if (errorId != id) continue;
 
 			std::string message = loadError;
+			if (overwriteId) return Err(fmt::format("updated pack isn't valid: ({})", message));
 
 			auto& freshRegistry = PackManager::get().registry();
 			freshRegistry.removePack(id);
@@ -378,15 +403,7 @@ namespace playersprites::transfer {
 	}
 
 	Result<size_t, std::string> installBuiltinPacks() {
-		static std::vector<std::string> const builtinPacks = {
-			"cute-lil-bow.zip",
-			"zero-x3.zip",
-			"zero-x4.zip",
-			"kris-ch5.zip",
-			"sonic-3.zip",
-			"sonic-1.zip",
-			"sonicmania.zip"
-		};
+		auto const& builtinPacks = builtinPackZips();
 
 		auto const resourcesDir = Mod::get()->getResourcesDir();
 
@@ -409,9 +426,52 @@ namespace playersprites::transfer {
 		}
 
 		if (installed == 0) return Err(fmt::format("none of the built-in packs could be installed:{}", failures));
+		Mod::get()->setSavedValue<int>("builtin-version", BUILTIN_CURRENTVER);
 		if (!failures.empty()) log::warn("some built-in packs failed to install:{}", failures);
 		return Ok(installed);
 	}
 
+	Result<size_t, std::string> updateBuiltinPacks() {
+		auto const resourcesDir = Mod::get()->getResourcesDir();
+
+		size_t updated = 0;
+		std::string failures;
+		for (auto const& zipName : builtinPackZips()) {
+			auto packId = std::string(fs::PathView(zipName).stem().value_or(""));
+			if (packId.empty()) continue;
+
+			if (!PackManager::get().registry().contains(packId)) continue;
+
+			auto zipPath = resourcesDir / zipName;
+			if (!fs::exists(zipPath)) {
+				failures += fmt::format("\n- {}: file is missing", zipName);
+				continue;
+			}
+
+			auto res = importPack(zipPath, packId);
+			if (res.isErr()) {
+				failures += fmt::format("\n- {}: {}", zipName, res.unwrapErr());
+				continue;
+			}
+			updated++;
+
+			auto packFolder = Registry::packsDir() / packId;
+			if (auto iterRes = fs::iterDirRecursive(packFolder); iterRes.isOk()) {
+				auto iterator = std::move(iterRes).unwrap();
+				for (auto entryRes : iterator) {
+					if (entryRes.isErr()) break;
+					auto& item = entryRes.unwrap();
+					if (item.isFile()) CCTextureCache::sharedTextureCache()->removeTextureForKey(item.path.c_str());
+				}
+			}
+		}
+
+		if (!failures.empty()) return Err(fmt::format("some built-in packs couldn't be updated:{}", failures));
+
+		Mod::get()->setSavedValue<int>("builtin-version", BUILTIN_CURRENTVER);
+		return Ok(updated);
+	}
+
 }
+
 

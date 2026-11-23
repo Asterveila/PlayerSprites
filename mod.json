@@ -3,12 +3,11 @@
 	"gd": {
 		"win": "2.2091",
 		"android": "2.2091",
-		"mac": "2.2091",
-		"ios": "2.2091"
+		"mac": "2.2091"
 	},
 	"id": "saritahhh.playersprites",
 	"name": "PlayerSprites",
-	"version": "v1.0.1",
+	"version": "v1.1.0",
 	"developer": "Saritahhh",
 	"description": "Replace your gamemodes with animated sprites!",
 	"settings": {
