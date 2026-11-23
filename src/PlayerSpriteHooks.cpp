@@ -575,6 +575,7 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 			menu->setPosition({btnPosData.xPos, btnPosData.yPos});
 			menu->setAnchorPoint({btnPosData.xAnchor, btnPosData.yAnchor});
 			menu->ignoreAnchorPointForPosition(false);
+			menu->setScale(Mod::get()->getSettingValue<float>("button-scale"));
 			menu->setID("taunt-button"_spr);
 			menu->addChild(btn);
 			
