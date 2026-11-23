@@ -49,7 +49,17 @@
 			"default": "Middle Right",
 			"one-of": ["Bottom Left", "Bottom Right", "Middle Right", "Top Left"],
 			"enable-if": "enable-button",
-			"enable-if-description": "Requires Manual Trigger Button to be enabled!"
+			"enable-if-description": "Taunt Button must be enabled!"
+		},
+		"button-scale": {
+			"type": "float",
+			"name": "Button Scale",
+			"description": "Controls the Scale of the Taunt button, if enabled.",
+			"default": 1.0,
+			"min": 0.5,
+			"max": 3.0,
+			"enable-if": "enable-button",
+			"enable-if-description": "Taunt Button must be enabled!"
 		}
 	},
 	"resources": {
