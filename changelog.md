@@ -1,4 +1,10 @@
-# 1.1.0
+# v1.1.1
+
+- <cg>Added</c> back <cs>iOS Support.</c>
+- <cg>Added</c> a setting to control the taunt button's scale.
+- <cj>Fixed</c> some issues with the Sonic Sprite packs' Ball animations stopping when they shouldn't.
+
+# v1.1.0
 *It's worth noting that 90% of these changes were made still in 2.208, however version wasn't bumped since there weren't any official public releases after v1.0. Thanks for releasing 2.209* **_THE SAME DAY_** *i released this mod officially. Very cool robtop.*
 
 <cr>iOS isn't supported yet in this version due to technical limitations *(missing bindings more specifically)*. Support will be added back as soon as possible.</c>
@@ -17,5 +23,5 @@
 - <cj>Fixed</c> various issues related to the keepDashFire global attribute for packs.
 - <cj>Fixed</c> various issues on the built-in sprite packs, as well as added a way to auto-update them (from the mod itself when updates release, it won't download anything off of anywhere).
 
-# 1.0.0
+# v1.0.0
 - Initial release!
