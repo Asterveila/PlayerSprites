@@ -1,5 +1,4 @@
 # v1.1.1
-
 - <cg>Added</c> back <cs>iOS Support.</c>
 - <cg>Added</c> a setting to control the taunt button's scale.
 - <cj>Fixed</c> some issues with the Sonic Sprite packs' Ball animations stopping when they shouldn't.
