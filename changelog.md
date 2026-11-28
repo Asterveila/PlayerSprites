@@ -1,3 +1,8 @@
+# v1.1.2
+- <cj>Fixed</c> a crash when pressing certain keybinds in the Editor that overlapped with your Taunt Keybind.
+- <cj>Fixed</c> the *Cute lil bow* Pack not working.
+- <cg>Added</c> Ship/UFO/Jetpack support to the *Cute lil bow* Pack.
+
 # v1.1.1
 - <cg>Added</c> back <cs>iOS Support.</c>
 - <cg>Added</c> a setting to control the taunt button's scale.

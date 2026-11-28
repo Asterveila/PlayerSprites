@@ -537,6 +537,8 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 	bool init() {
 		if (!GJBaseGameLayer::init()) return false;
 
+		if (!PlayLayer::get()) return true;
+
 		audio::preloadAll();
 
 		this->addEventListener(
