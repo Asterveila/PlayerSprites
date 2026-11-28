@@ -379,6 +379,7 @@ class $modify(PSPlayerObject, PlayerObject) {
 	bool runTaunt(std::unordered_set<std::string>& playedSounds, CCObject* sender) {
 		auto* sprite = m_fields->modSprite;
 		if (!sprite || m_isDead || m_fields->levelComplete) return false;
+		if (!PlayLayer::get()) return false;
 
 		if (sprite->isPlaying() && sprite->currentEventName() == "Mod:Taunt") {
 			if (!m_fields->tauntInterruptByTaunts && !sprite->isHolding()) return false;
@@ -537,14 +538,12 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 	bool init() {
 		if (!GJBaseGameLayer::init()) return false;
 
-		if (!PlayLayer::get()) return true;
-
 		audio::preloadAll();
 
 		this->addEventListener(
 			KeybindSettingPressedEventV3(Mod::get(), "taunt-keybind"),
 			[this](Keybind const&, bool down, bool repeat, double) {
-				if (!down || repeat || PlayLayer::get()->m_isPaused) return false;
+				if (!down || repeat || !PlayLayer::get() || PlayLayer::get()->m_isPaused) return false;
 
 				std::vector<PlayerObject*> players = { m_player1 };
 				if (m_gameState.m_isDualMode) players.push_back(m_player2);
@@ -559,7 +558,7 @@ class $modify(PSBaseGameLayer, GJBaseGameLayer) {
 			}
 		);
 
-		if (Mod::get()->getSettingValue<bool>("enable-button")) {
+		if (Mod::get()->getSettingValue<bool>("enable-button") && !LevelEditorLayer::get()) {
 			ButtonPositionData btnPosData = getButtonPosData(Mod::get()->getSettingValue<std::string>("button-pos"));
 			std::unordered_set<std::string> playedSounds;
 

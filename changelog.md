@@ -1,3 +1,6 @@
+# v1.1.3
+- <cj>Fixed</c> Taunts not being able to run (at all, ever) due to the previous crash fix. #oops
+
 # v1.1.2
 - <cj>Fixed</c> a crash when pressing certain keybinds in the Editor that overlapped with your Taunt Keybind.
 - <cj>Fixed</c> the *Cute lil bow* Pack not working.
